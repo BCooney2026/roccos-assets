@@ -38,3 +38,6 @@ Section banners for the menu page, 1000x667 WebP. Free photos from Unsplash (Uns
 | section-chef-lucas.webp | https://unsplash.com/photos/cooked-noodles-with-shrimps-r01ZopTiEV8 |
 | section-pasta-platters.webp | https://unsplash.com/photos/a-plate-of-spaghetti-with-meatballs-and-sauce-ptJf7Aqq16I |
 | section-kids-goodies.webp | https://unsplash.com/photos/sliced-bread-with-green-vegetable-on-brown-wooden-table-zrl9pZp-nos |
+
+## menu/v2
+Section banners for the menu page. These are Rocco's own food photos (the shoot used on his ordering pages), cropped to 1000x667.
