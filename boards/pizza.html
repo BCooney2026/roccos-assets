@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rocco's Pizza: Pizza Board</title>
+<!--
+  BOARD 1: PIZZA HEADQUARTERS
+  Left: the hero pizza (George's real photo, cut out and lit), slow
+  camera push, oven glow, crossfades between featured pizzas.
+  Right: the fixed, always readable pizza menu. Menu text never moves.
+  Prices come from the command center by Sheet ID (see signage.js).
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600&family=Playfair+Display:ital,wght@1,800;1,900&family=Inter:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="signage.css">
+<style>
+  /* ---------- hero side ---------- */
+  .hero { position: absolute; left: 0; top: 0; width: 900px; height: 1080px; }
+  .hero .glow { left: 20px; top: 300px; width: 860px; height: 740px; }
+  .slide { position: absolute; inset: 0; opacity: 0; transition: opacity 1.1s ease; }
+  .slide.on { opacity: 1; }
+  .slide .food { left: 70px; top: 405px; width: 760px; }
+  .slide .copy { position: absolute; left: 72px; top: 196px; right: 60px; }
+  .slide .feature-title { font-size: 118px; margin-top: 18px; white-space: nowrap; }
+  .slide .desc { margin-top: 18px; font-size: 26px; font-weight: 500; color: var(--ivory-2); }
+  .slide .medallion { position: absolute; left: 660px; top: 372px; z-index: 3; }
+  /* Copy and price ease in each time a slide comes up */
+  .slide .copy > * { opacity: 0; transform: translateY(18px); transition: opacity .9s ease, transform 1s cubic-bezier(.2,.8,.2,1); }
+  .slide.on .copy > * { opacity: 1; transform: none; }
+  .slide.on .copy > :nth-child(2) { transition-delay: .15s; }
+  .slide.on .copy > :nth-child(3) { transition-delay: .3s; }
+  .slide .medallion { opacity: 0; transform: scale(.7) rotate(-8deg); transition: opacity .6s ease .6s, transform .9s cubic-bezier(.3,1.6,.4,1) .6s; }
+  .slide.on .medallion { opacity: 1; transform: none; }
+  .slide .food { opacity: 0; transform: translateX(-30px) scale(.97); transition: opacity 1.2s ease, transform 1.6s cubic-bezier(.2,.8,.2,1); }
+  .slide.on .food { opacity: 1; transform: none; }
+
+  .hero .logo { left: 34px; top: 8px; width: 230px; }
+
+  /* ---------- menu side ---------- */
+  .menu {
+    position: absolute; left: 900px; top: 0; right: 0; bottom: 0;
+    background: linear-gradient(90deg, rgba(0,0,0,.28), rgba(0,0,0,.12) 30%, rgba(0,0,0,.18));
+    border-left: 1px solid var(--rule);
+    padding: 58px 64px 0 58px;
+    display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1.08fr); column-gap: 58px; grid-template-rows: 1fr 92px;
+  }
+  .col { min-height: 0; display: flex; flex-direction: column; }
+  .rows { margin-top: 22px; display: flex; flex-direction: column; gap: 17px; }
+  .row { display: grid; grid-template-columns: 1fr auto; column-gap: 16px; align-items: baseline; }
+  .row .n { font-weight: 700; font-size: 29px; line-height: 1.1; letter-spacing: -.01em; }
+  .row .d { grid-column: 1 / 2; font-weight: 500; font-size: 18px; line-height: 1.3; color: var(--ivory-3); margin-top: 3px; }
+  .row .price { font-size: 29px; color: var(--ivory); text-align: right; }
+  .row .star { color: var(--tomato); font-size: .72em; margin-right: 8px; position: relative; top: -.12em; }
+  .row.hot .n { color: #fff; }
+  .row.hot .price { color: var(--tomato); }
+
+  /* Classics: price table with MED / LG columns */
+  .table .row { grid-template-columns: 1fr 104px 104px; }
+  .table .row .price { grid-column: auto; }
+  .table .row .d { grid-column: 1 / 2; }
+  .table .head { display: grid; grid-template-columns: 1fr 104px 104px; margin-top: 18px; }
+  .table .head span { font-family: "Oswald", sans-serif; font-weight: 500; font-size: 17px; letter-spacing: .24em; color: var(--brass); text-align: right; }
+  .table .row .price.one { grid-column: 2 / 4; }
+  .table .row .d { grid-column: 1 / -1; }
+  /* Specialty list: a little tighter so 12 pies fit above the band */
+  .spec .rows { gap: 11px; margin-top: 18px; }
+  .spec .row .n, .spec .row .price { font-size: 28px; }
+  .spec .row .d { font-size: 17px; margin-top: 2px; }
+
+  .sub { margin-top: 30px; }
+  .sub .section-title { font-size: 24px; letter-spacing: .2em; color: var(--brass-hi); }
+  .tops { margin-top: 12px; font-size: 20px; line-height: 1.45; color: var(--ivory-2); font-weight: 500; }
+  .tops b { font-weight: 800; color: var(--ivory); }
+  .tops .sep { color: var(--tomato); margin: 0 8px; }
+
+  /* Footer band under the menu */
+  .band {
+    grid-column: 1 / -1; align-self: end; height: 92px; margin: 0 -64px 0 -58px; padding: 0 64px 0 58px;
+    display: flex; align-items: center; gap: 24px; border-top: 1px solid var(--rule);
+    background: linear-gradient(90deg, rgba(217,58,43,.16), rgba(0,0,0,0) 60%);
+  }
+  .band .k { font-family: "Oswald", sans-serif; font-weight: 600; font-size: 18px; letter-spacing: .26em; text-transform: uppercase; color: #fff; background: var(--tomato); padding: 8px 14px 7px; }
+  .band .t { font-weight: 700; font-size: 26px; }
+  .band .t .price { color: var(--tomato); margin-left: 10px; font-size: 30px; }
+  .band .t small { font-weight: 500; font-size: 19px; color: var(--ivory-3); margin-left: 10px; }
+  .band .right { margin-left: auto; text-align: right; font-family: "Oswald", sans-serif; letter-spacing: .12em; text-transform: uppercase; font-size: 18px; color: var(--ivory-3); }
+  .band .right b { display: block; font-family: "Inter", sans-serif; letter-spacing: 0; font-size: 28px; font-weight: 800; color: var(--ivory); }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="env"><div class="slate"></div><div class="grain"></div><div class="vignette"></div></div>
+  <div class="hero" id="hero"><div class="glow"></div></div>
+  <div class="menu" id="menu"></div>
+</div>
+<script src="signage.js"></script>
+<script>
+(function () {
+  "use strict";
+  const LOGO = "https://framerusercontent.com/images/r89APyBCVRfktBf6smnZj6qI.png?width=1536&height=1024";
+
+  // Featured pizzas for the hero (real photos only). Prices by Sheet ID.
+  const FEATURES = [
+    { eyebrow: "Rocco’s Famous", title: "Jersey Shore", desc: "Sweet sauce & white cheddar on a thin crust", img: "img/pizza-jersey-shore.webp", id: "R018" },
+    { eyebrow: "The Original", title: "Neapolitan", desc: "Round, thin crust. Large plain pie", img: "img/pizza-cheese.webp", id: "R009", label: "Large", foodStyle: "left:90px;top:450px;width:700px;" }
+  ];
+
+  // Daily specials by weekday (1 = Monday). Same schedule as the command center.
+  const DAILY = { 1: [["R001", "Large Plain Pizza", "Monday only"]],
+                  2: [["R002", "Cheesesteak", "Tuesday only"], ["R003", "Spaghetti & Meatballs", "with salad & garlic bread"]],
+                  3: [["R004", "Antipasto", "with garlic bread"]] };
+
+  const esc = RS.esc, p = RS.p;
+
+  function row(name, id, desc, opts) {
+    opts = opts || {};
+    return '<div class="row' + (opts.hot ? ' hot' : '') + '">' +
+      '<div class="n">' + (opts.star ? '<span class="star">&#9733;</span>' : '') + esc(name) + (opts.tag ? ' <span class="tag-basil">' + esc(opts.tag) + '</span>' : '') + '</div>' +
+      '<div class="price">' + (opts.priceHtml || p(id)) + '</div>' +
+      (desc ? '<div class="d">' + esc(desc) + '</div>' : '') + '</div>';
+  }
+  function trow(name, desc, med, lg, one) {
+    return '<div class="row"><div class="n">' + esc(name) + '</div>' +
+      (one ? '<div class="price one">' + one + '</div>' : '<div class="price">' + med + '</div><div class="price">' + lg + '</div>') +
+      (desc ? '<div class="d">' + esc(desc) + '</div>' : '') + '</div>';
+  }
+
+  function drawMenu() {
+    const works = RS.price("R028");
+    const worksLg = RS.size("R028", "Large");
+    const worksOther = ["Med", "Sicilian"].map(l => { const v = RS.size("R028", l); return v ? l + " " + v.replace("$", "") : ""; }).filter(Boolean).join(" · ");
+    const topsMed = RS.size("R010", "Med"), topsLg = RS.size("R010", "Large");
+
+    const classics =
+      '<div class="col">' +
+        '<div class="section-title">The Classics</div>' +
+        '<div class="table"><div class="head"><span></span><span>MED</span><span>LG</span></div>' +
+        '<div class="rows" style="margin-top:10px">' +
+          trow("Neapolitan", "Round, thin crust", p("R008"), p("R009")) +
+          trow("Sicilian", "Square, thick crust, one size", "", "", p("R011")) +
+          trow("Tomato Pie", "", "", "", p("R031")) +
+          '<div class="row"><div class="n">Gluten Free</div><div class="price one">' + p("R017") + '</div><div class="d">10-inch pie</div></div>' +
+        '</div></div>' +
+        '<div class="sub"><div class="section-title">By the Slice</div><div class="rows">' +
+          row("Plain Slice", "R015") + row("Special Slice", "R016") +
+        '</div></div>' +
+        '<div class="sub"><div class="section-title">Toppings</div>' +
+          '<div class="tops"><b>Med ' + RS.money(topsMed).replace("$", "") + '</b><span class="sep">•</span><b>Lg ' + RS.money(topsLg) + '</b><span class="sep">•</span><b>Sicilian ' + RS.money(RS.price("R012").replace(" each", "")) + '</b><br>' +
+          'Mushrooms, pepperoni, sausage, meatballs, ground beef, salami, anchovies, black olives, fresh tomato, extra cheese</div>' +
+        '</div>' +
+      '</div>';
+
+    const specialty =
+      '<div class="col spec">' +
+        '<div class="section-title">Specialty Pies</div>' +
+        '<div class="rows">' +
+          row("Jersey Shore", "R018", "Sweet sauce & white cheddar, thin crust", { star: 1, hot: 1 }) +
+          row("White Pizza", "R023", "Garlic, olive oil & mozzarella") +
+          row("Breakfast Pizza", "R019", "Eggs, bacon & Boar’s Head ham") +
+          row("Chunky Chicken", "R025", "Chunks of white chicken breast") +
+          row("Taco Pizza", "R024", "Taco meat, mozzarella, hot sauce & salsa") +
+          row("BBQ Chicken or Steak", "R029", "BBQ sauce & ranch") +
+          row("Hawaiian", "R026", "Pineapple & Boar’s Head ham") +
+          row("Vegetarian", "R021", "Fresh veggies, red or white", { star: 1 }) +
+          row("Upside Down", "R020", "Sauce on top, cheese underneath") +
+          row("Stuffed Crust", "R027") +
+          row("All Stuffed", "R032", "A bit of everything but the anchovies") +
+          row("“The Works”", "R028", "10 toppings" + (worksOther ? " · " + worksOther : ""), { priceHtml: RS.money(worksLg || works) }) +
+        '</div>' +
+      '</div>';
+
+    // Footer band: today's special, else the Mon-Thu pickup deals, else gluten free
+    const day = RS.weekday();
+    let band = "";
+    const todays = DAILY[day];
+    if (todays) {
+      band = '<div class="k">Today</div><div class="t">' + todays.map(t => esc(t[1]) + '<span class="price">' + p(t[0]) + '</span><small>' + esc(t[2]) + '</small>').join('<span style="color:var(--ivory-3);margin:0 18px">/</span>') + '</div>';
+    } else if (day === 4) {
+      band = '<div class="k">Pickup Deal</div><div class="t">2 Large Cheese<span class="price">' + p("R005") + '</span><small>Mon–Thu, pickup only</small></div>';
+    } else {
+      band = '<div class="k">Gluten Free</div><div class="t">10″ Gluten Free Pizza<span class="price">' + p("R017") + '</span><small>All pasta dishes available gluten free</small></div>';
+    }
+    band += '<div class="right">Pickup &amp; Delivery<b>610-935-2202</b></div>';
+
+    document.getElementById("menu").innerHTML = classics + specialty + '<div class="band">' + band + '</div>';
+  }
+
+  let built = false, cur = 0;
+  function drawHero() {
+    const hero = document.getElementById("hero");
+    if (!built) {
+      hero.insertAdjacentHTML("beforeend",
+        FEATURES.map((f, i) =>
+          '<div class="slide" data-i="' + i + '">' +
+            '<div class="food push"' + (f.foodStyle ? ' style="' + f.foodStyle + '"' : '') + '><img src="' + f.img + '" alt=""></div>' +
+            '<div class="copy"><div class="eyebrow">' + esc(f.eyebrow) + '</div><div class="feature-title">' + esc(f.title) + '</div><div class="desc">' + esc(f.desc) + '</div></div>' +
+            '<div class="medallion"><span class="price"></span>' + (f.label ? '<small>' + esc(f.label) + '</small>' : '') + '</div>' +
+          '</div>').join("") +
+        '<div class="logo"><img src="' + LOGO + '" alt="Rocco’s Pizza"></div>');
+      built = true;
+      hero.querySelector(".slide").classList.add("on");
+      setInterval(() => {
+        const slides = hero.querySelectorAll(".slide");
+        slides[cur].classList.remove("on");
+        cur = (cur + 1) % slides.length;
+        slides[cur].classList.add("on");
+      }, 15000);
+    }
+    hero.querySelectorAll(".slide").forEach((el, i) => {
+      el.querySelector(".medallion .price").innerHTML = p(FEATURES[i].id);
+    });
+  }
+
+  RS.start(function () { drawMenu(); drawHero(); });
+})();
+</script>
+</body>
+</html>

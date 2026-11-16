@@ -1,0 +1,122 @@
+/*
+  ROCCO'S SIGNAGE DESIGN SYSTEM
+  "Old-school neighborhood pizzeria meets modern cinematic signage."
+  Shared by every board (pizza.html, feature.html, ...).
+
+  Palette: charcoal / slate background, warm ivory type, tomato red for
+  prices and specials, basil green as a second accent, warm amber oven
+  light, brass for fine details.
+  Type: Oswald (headings), Playfair Display (feature / editorial),
+  Inter (menu items and prices).
+  Every board draws on a fixed 1920x1080 stage that is scaled to the TV.
+*/
+:root {
+  --char: #121110;
+  --slate: #1b1a18;
+  --ivory: #f4ecdd;
+  --ivory-2: rgba(244, 236, 221, .66);
+  --ivory-3: rgba(244, 236, 221, .42);
+  --tomato: #d93a2b;
+  --tomato-deep: #a3241a;
+  --basil: #4f7a3a;
+  --basil-hi: #79a85b;
+  --amber: #ffb25a;
+  --brass: #c9a35c;
+  --brass-hi: #ecd29a;
+  --rule: rgba(201, 163, 92, .35);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #000; cursor: none; }
+
+.stage {
+  position: absolute; left: 50%; top: 50%;
+  width: 1920px; height: 1080px; overflow: hidden;
+  transform-origin: center center;
+  color: var(--ivory);
+  font-family: "Inter", "Helvetica Neue", Arial, sans-serif;
+  background: var(--char);
+  transition: margin .8s ease;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- environment: slate, oven light, grain, vignette ---------- */
+.env { position: absolute; inset: 0; pointer-events: none; }
+.env .slate {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(1200px 900px at 70% 40%, rgba(255,255,255,.035), transparent 60%),
+    linear-gradient(180deg, #1a1816 0%, #121110 55%, #0d0c0b 100%);
+}
+/* Fine stone grain (generated noise, kept very subtle) */
+.env .grain {
+  position: absolute; inset: -50%;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 .95  0 0 0 0 .88  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  opacity: .07; mix-blend-mode: overlay;
+}
+.env .vignette {
+  position: absolute; inset: 0;
+  background: radial-gradient(130% 120% at 50% 45%, transparent 55%, rgba(0,0,0,.65) 100%);
+}
+
+/* Warm oven glow that sits behind the food and breathes slowly */
+.glow {
+  position: absolute; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(255,150,60,.42), rgba(217,58,43,.16) 45%, rgba(217,58,43,0) 72%);
+  filter: blur(18px);
+  animation: breathe 9s ease-in-out infinite;
+}
+@keyframes breathe { 0%,100% { opacity: .78; transform: scale(1); } 50% { opacity: 1; transform: scale(1.05); } }
+
+/* ---------- food (cut-out photos) ---------- */
+.food { position: absolute; pointer-events: none; }
+.food img {
+  display: block; width: 100%; height: auto;
+  filter: drop-shadow(0 38px 46px rgba(0,0,0,.62)) drop-shadow(0 0 40px rgba(255,140,60,.18)) saturate(1.06) contrast(1.04);
+}
+.push { animation: push 20s ease-in-out infinite alternate; }
+@keyframes push { from { transform: scale(1); } to { transform: scale(1.055) translateY(-.6%); } }
+
+/* ---------- type ---------- */
+.eyebrow {
+  font-family: "Oswald", "Arial Narrow", sans-serif; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .32em; color: var(--tomato); font-size: 22px;
+  display: inline-flex; align-items: center; gap: 16px;
+}
+.eyebrow::after { content: ""; width: 70px; height: 1px; background: linear-gradient(90deg, var(--brass), transparent); }
+.feature-title {
+  font-family: "Playfair Display", Georgia, serif; font-weight: 900; font-style: italic;
+  line-height: .92; letter-spacing: -.01em; color: var(--ivory);
+  text-shadow: 0 6px 40px rgba(0,0,0,.5);
+}
+.section-title {
+  font-family: "Oswald", "Arial Narrow", sans-serif; font-weight: 600; text-transform: uppercase;
+  letter-spacing: .14em; font-size: 34px; color: var(--ivory);
+  display: flex; align-items: center; gap: 18px;
+}
+.section-title::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, var(--rule), transparent); }
+
+/* Price: dollars big, cents raised (no "$") */
+.price { font-family: "Inter", sans-serif; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.price sup { font-size: .5em; vertical-align: top; position: relative; top: .12em; margin-left: 1px; letter-spacing: 0; }
+
+/* Red price medallion for features */
+.medallion {
+  display: inline-flex; flex-direction: column; align-items: center; justify-content: center;
+  width: 190px; height: 190px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #ef5040, var(--tomato) 45%, var(--tomato-deep));
+  box-shadow: 0 20px 50px rgba(0,0,0,.55), inset 0 0 0 3px rgba(255,255,255,.12), 0 0 0 6px rgba(201,163,92,.35);
+  color: #fff;
+}
+.medallion .price { font-size: 66px; line-height: 1; }
+.medallion small { font-family: "Oswald", sans-serif; font-weight: 500; font-size: 16px; letter-spacing: .24em; text-transform: uppercase; opacity: .85; margin-top: 4px; }
+
+/* Basil tag (gluten free, vegetarian) */
+.tag-basil {
+  display: inline-block; font-family: "Oswald", sans-serif; font-weight: 600; font-size: 14px; letter-spacing: .14em;
+  color: #eaf3e2; background: var(--basil); padding: 3px 8px 2px; border-radius: 3px; vertical-align: middle;
+}
+
+/* Logo badge (PNG has transparent padding; negative margins trim it) */
+.logo { position: absolute; z-index: 5; filter: drop-shadow(0 10px 22px rgba(0,0,0,.55)); }
+.logo img { display: block; width: 100%; height: auto; }

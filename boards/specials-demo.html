@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Command Center: Specials (design demo)</title>
+<!--
+  DESIGN DEMO ONLY (not wired up): how George updates a special on the
+  Fire tablet. This is the planned "Specials" tab of the command center.
+  Every field maps to the brief's specials engine; prices still come
+  from the Prices tab, so a special can never show a made-up price.
+-->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800&family=Oswald:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { width: 1280px; height: 800px; overflow: hidden; background: #0e0e0e; color: #f4ecdd; font-family: "Inter", sans-serif; }
+  header { height: 64px; display: flex; align-items: center; gap: 18px; padding: 0 24px; border-bottom: 1px solid #262626; }
+  header .brand { font-family: "Oswald", sans-serif; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; font-size: 20px; }
+  header nav { display: flex; gap: 6px; margin-left: 28px; }
+  header nav span { padding: 10px 18px; border-radius: 999px; font-weight: 700; font-size: 16px; color: rgba(244,236,221,.6); }
+  header nav span.on { background: #d93a2b; color: #fff; }
+  header .lock { margin-left: auto; font-weight: 700; color: rgba(244,236,221,.5); }
+  main { display: grid; grid-template-columns: 470px 1fr; height: 736px; }
+  .list { border-right: 1px solid #262626; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+  .replace { display: flex; align-items: center; justify-content: center; gap: 10px; height: 64px; border-radius: 14px; background: #d93a2b; color: #fff; font-weight: 800; font-size: 20px; }
+  .lh { font-family: "Oswald", sans-serif; letter-spacing: .2em; text-transform: uppercase; font-size: 13px; color: rgba(244,236,221,.45); margin-top: 6px; }
+  .sp { display: grid; grid-template-columns: 72px 1fr auto; gap: 14px; align-items: center; padding: 12px; border-radius: 14px; background: #171717; border: 2px solid transparent; }
+  .sp.sel { border-color: #d93a2b; background: #1d1716; }
+  .sp img { width: 72px; height: 54px; object-fit: contain; background: #0b0b0b; border-radius: 8px; }
+  .sp .t { font-weight: 800; font-size: 17px; }
+  .sp .m { font-size: 13px; color: rgba(244,236,221,.55); margin-top: 3px; }
+  .sp .live { font-size: 11px; font-weight: 800; letter-spacing: .1em; color: #79a85b; }
+  .tog { width: 52px; height: 30px; border-radius: 999px; background: #3a3a3a; position: relative; }
+  .tog::after { content: ""; position: absolute; top: 3px; left: 3px; width: 24px; height: 24px; border-radius: 50%; background: #fff; }
+  .tog.on { background: #4f7a3a; } .tog.on::after { left: 25px; }
+  .edit { padding: 22px 28px; display: grid; grid-template-columns: 1fr 360px; gap: 26px; }
+  .f { margin-bottom: 14px; }
+  .f label { display: block; font-size: 13px; font-weight: 700; color: rgba(244,236,221,.55); margin-bottom: 6px; text-transform: uppercase; letter-spacing: .08em; }
+  .f .in { height: 52px; border-radius: 12px; background: #171717; border: 2px solid #2b2b2b; display: flex; align-items: center; padding: 0 14px; font-size: 20px; font-weight: 700; }
+  .f .in.price { justify-content: space-between; }
+  .f .in.price small { font-size: 13px; color: rgba(244,236,221,.5); font-weight: 600; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .days { display: flex; gap: 6px; }
+  .days span { flex: 1; height: 46px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-weight: 800; background: #171717; color: rgba(244,236,221,.55); }
+  .days span.on { background: #d93a2b; color: #fff; }
+  .photos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .photos img { width: 100%; aspect-ratio: 4/3; object-fit: contain; background: #0b0b0b; border-radius: 10px; border: 2px solid transparent; padding: 4px; }
+  .photos img.on { border-color: #d93a2b; }
+  .pv h4 { font-family: "Oswald", sans-serif; letter-spacing: .2em; text-transform: uppercase; font-size: 13px; color: rgba(244,236,221,.45); margin-bottom: 8px; }
+  .pv .tv { width: 360px; height: 202px; border-radius: 10px; overflow: hidden; border: 6px solid #000; box-shadow: 0 0 0 1px #333; background: #000; position: relative; }
+  .pv .tv img { width: 1920px; height: 1080px; transform: scale(.1823); transform-origin: 0 0; }
+  .pv .note { font-size: 14px; color: rgba(244,236,221,.55); margin-top: 10px; line-height: 1.4; }
+  .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .actions span { flex: 1; height: 58px; border-radius: 14px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 18px; }
+  .actions .save { background: #d93a2b; color: #fff; } .actions .undo { background: #232323; }
+  .tip { position: absolute; background: #ffcf5a; color: #1a1205; font-weight: 800; font-size: 14px; padding: 8px 12px; border-radius: 10px; box-shadow: 0 10px 30px rgba(0,0,0,.5); }
+  .tip::before { content: attr(data-n); display: inline-flex; width: 22px; height: 22px; border-radius: 50%; background: #1a1205; color: #ffcf5a; align-items: center; justify-content: center; margin-right: 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Rocco's Command Center</div>
+  <nav><span>Prices</span><span>Today</span><span class="on">Specials</span></nav>
+  <div class="lock">&#128274; Lock</div>
+</header>
+<main>
+  <div class="list">
+    <div class="replace">&#9733; Replace Today's Feature</div>
+    <div class="lh">Running today</div>
+    <div class="sp sel"><img src="img/pizza-cheese.webp"><div><div class="t">Monday Special: Large Plain Pizza</div><div class="m">Mondays &middot; price from Prices tab</div><div class="live">ON THE TVs NOW</div></div><div class="tog on"></div></div>
+    <div class="sp"><img src="img/pizza-jersey-shore.webp"><div><div class="t">Pickup Deals</div><div class="m">Mon&ndash;Thu</div><div class="live">ON THE TVs NOW</div></div><div class="tog on"></div></div>
+    <div class="sp"><img src="img/chicken-cheesesteak.webp"><div><div class="t">Chicken Cheesesteak</div><div class="m">Every day</div><div class="live">ON THE TVs NOW</div></div><div class="tog on"></div></div>
+    <div class="lh">Scheduled / off</div>
+    <div class="sp"><img src="img/antipasto.webp"><div><div class="t">Wednesday: Antipasto</div><div class="m">Wednesdays</div></div><div class="tog on"></div></div>
+    <div class="sp"><img src="img/ravioli-tray.webp"><div><div class="t">Holiday Catering (example)</div><div class="m">Dec 1 &ndash; Dec 31 &middot; starts in 15 days</div></div><div class="tog"></div></div>
+  </div>
+  <div class="edit">
+    <div>
+      <div class="f"><label>Special name</label><div class="in">Large Plain Pizza</div></div>
+      <div class="f"><label>Short description</label><div class="in" style="font-size:18px;font-weight:600">Every Monday.</div></div>
+      <div class="row2">
+        <div class="f"><label>Price</label><div class="in price">$9.50 <small>from Prices</small></div></div>
+        <div class="f"><label>Was (optional)</label><div class="in price" style="color:rgba(244,236,221,.4)">None</div></div>
+      </div>
+      <div class="f"><label>Days</label><div class="days"><span class="on">Mon</span><span>Tue</span><span>Wed</span><span>Thu</span><span>Fri</span><span>Sat</span><span>Sun</span></div></div>
+      <div class="row2">
+        <div class="f"><label>Starts</label><div class="in">Any time</div></div>
+        <div class="f"><label>Ends</label><div class="in">No end date</div></div>
+      </div>
+      <div class="f"><label>Photo (real Rocco's photos only)</label>
+        <div class="photos"><img class="on" src="img/pizza-cheese.webp"><img src="img/pizza-jersey-shore.webp"><img src="img/antipasto.webp"><img src="img/ravioli-tray.webp"></div></div>
+    </div>
+    <div class="pv">
+      <h4>Preview on the TV</h4>
+      <div class="tv"><img src="demo-weekly.jpg"></div>
+      <div class="note">This is exactly what the Feature TV will show. Nothing goes live until you tap <b>Publish</b>. <b>Undo</b> puts back the last version.</div>
+      <div class="actions"><span class="undo">Undo</span><span class="save">Publish</span></div>
+    </div>
+  </div>
+</main>
+<div class="tip" data-n="1" style="left:170px;top:154px">One tap: swap what's featured today</div>
+<div class="tip" data-n="2" style="left:892px;top:500px">Prices come from the Prices tab. No typos.</div>
+<div class="tip" data-n="3" style="left:498px;top:650px">Tap the days it runs. It turns itself on and off.</div>
+<div class="tip" data-n="4" style="left:892px;top:560px">Preview, then Publish</div>
+</body>
+</html>
