@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rocco's Pizza Menu Board</title>
+<!--
+  ROCCO'S MENU BOARDS (two 50" TVs at the shop)
+  ------------------------------------------------------------------
+  One file, two boards:
+    ?tv=1   Pizza board: Classic, Specialty, Chef Lucas, Italian Dinners
+    ?tv=2   Sandwich board: logo, Seafood, Sides, Kids, Strombolis,
+            Salads, Appetizers, Hot Steaks & Subs, Burgers, Hoagies
+
+  PRICES: every item points at its Sheet ID (R001 to R148) and pulls
+  the price from the command center feed, the same one the website
+  reads. George changes a price on the tablet and the TVs follow
+  within a few minutes. Typed prices below are only the fallback for
+  the very first load with no internet.
+
+  The page:
+    - draws on a fixed 1920x1080 stage, scaled to fit any TV
+    - refreshes the feed every 2 minutes, keeps the last good copy
+      (localStorage) so a Wi-Fi blip never blanks the board
+    - reloads itself at 4 am so code changes get picked up
+    - shifts a few pixels every 10 minutes (no burn-in)
+    - shrinks a panel's text if a long price would overflow it
+
+  Bottom strip:
+    tv=1  today's special (by weekday) + Mon-Thu pickup deals
+    tv=2  soup(s) of the day + the Banner Message when George sets one
+
+  To change what is on a board, edit BOARDS below. To change a
+  price, use the tablet. Never type prices in here.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Barlow+Condensed:wght@500;600;700&family=Barlow:wght@400;500&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --gold: #e9c46a;
+    --gold-hi: #f8e3a0;
+    --gold-lo: #9a7426;
+    --price: #ffcf5a;
+    --ember: #ff5a36;
+    --red: #c62828;
+    --text: #fbf7ef;
+    --dim: rgba(251,247,239,.62);
+    --panel: #121212;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #050505; cursor: none; }
+
+  /* 1920x1080 stage, scaled to the screen */
+  #stage {
+    position: absolute; left: 50%; top: 50%;
+    width: 1920px; height: 1080px;
+    transform-origin: center center;
+    color: var(--text);
+    font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+    /* dark planks, like the old boards */
+    background:
+      radial-gradient(1200px 600px at 20% 0%, rgba(255,110,40,.10), transparent 60%),
+      radial-gradient(900px 500px at 90% 100%, rgba(198,40,40,.10), transparent 60%),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.025) 0 2px, transparent 2px 240px),
+      repeating-linear-gradient(0deg, rgba(0,0,0,.25) 0 1px, transparent 1px 7px),
+      linear-gradient(180deg, #1b1a19, #0d0c0c);
+    padding: 22px 22px 0;
+    display: flex; flex-direction: column; gap: 16px;
+    transition: margin .8s ease;
+  }
+
+  .grid { flex: 1; min-height: 0; display: grid; gap: 16px; }
+
+  /* Gold framed panel */
+  .panel {
+    position: relative; min-height: 0; overflow: hidden;
+    background:
+      radial-gradient(120% 80% at 50% 0%, rgba(255,255,255,.05), transparent 60%),
+      repeating-linear-gradient(45deg, rgba(255,255,255,.012) 0 2px, transparent 2px 5px),
+      var(--panel);
+    border: 3px solid var(--gold);
+    border-image: linear-gradient(160deg, var(--gold-hi), var(--gold-lo) 35%, var(--gold) 60%, var(--gold-lo)) 1;
+    box-shadow: inset 0 0 0 2px #000, inset 0 0 0 3px rgba(233,196,106,.35), 0 14px 30px rgba(0,0,0,.55);
+    padding: 18px 22px 16px;
+    display: flex; flex-direction: column;
+    --fs: 1;
+  }
+  /* Photo header: George's real shoot photos (same files as the website
+     menu banners), fading into the panel, heading over the bottom edge. */
+  .panel.has-photo { padding-top: 0; }
+  .photo {
+    position: relative; margin: 0 -22px; height: var(--ph, 150px); flex: none; overflow: hidden;
+    -webkit-mask-image: linear-gradient(180deg, #000 55%, transparent);
+            mask-image: linear-gradient(180deg, #000 55%, transparent);
+  }
+  .photo i {
+    position: absolute; inset: 0; background-size: cover; background-position: center 45%;
+    animation: kenburns 40s ease-in-out infinite alternate; filter: saturate(1.08) contrast(1.04);
+  }
+  @keyframes kenburns { from { transform: scale(1.02); } to { transform: scale(1.12) translateY(-2%); } }
+  .has-photo h2 { position: relative; margin-top: -58px; text-shadow: 0 3px 14px rgba(0,0,0,.95), 0 0 2px #000; }
+
+  .panel h2 {
+    font-family: "Oswald", sans-serif; font-weight: 700; text-transform: uppercase;
+    font-size: calc(46px * var(--hs, 1)); line-height: 1.02; letter-spacing: .02em;
+    text-align: center; color: var(--text);
+  }
+  .panel h2::after {
+    content: ""; display: block; height: 3px; width: 70%; margin: 8px auto 0;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  }
+  .panel .sub {
+    text-align: center; color: var(--gold-hi); font-family: "Caveat", cursive;
+    font-size: calc(30px * var(--fs)); line-height: 1.05; margin-top: 6px;
+  }
+  .panel .note {
+    text-align: center; color: var(--dim); font-family: "Barlow", sans-serif;
+    font-size: calc(17px * var(--fs)); line-height: 1.25; margin-top: 4px;
+  }
+  .panel .sizebar {
+    display: flex; justify-content: center; gap: 18px; margin-top: 8px;
+    font-family: "Oswald", sans-serif; font-weight: 600; color: var(--price);
+    font-size: calc(24px * var(--fs));
+  }
+  .panel .sizebar span em { font-style: normal; color: var(--dim); font-weight: 500; margin-right: 6px; }
+
+  .items { flex: 1; min-height: 0; display: flex; flex-direction: column; justify-content: space-evenly; margin-top: 8px; }
+  .item { display: grid; grid-template-columns: 1fr auto; column-gap: 12px; align-items: baseline; }
+  .item .name {
+    font-weight: 700; font-size: calc(33px * var(--fs)); line-height: 1.08; color: var(--text);
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .item .name .star { color: var(--gold); font-size: .8em; }
+  .item .dots { display: none; }
+  .item .price {
+    font-family: "Oswald", sans-serif; font-weight: 600; color: var(--price);
+    font-size: calc(30px * var(--fs)); line-height: 1; white-space: nowrap; text-align: right;
+    text-shadow: 0 0 18px rgba(255,190,60,.25);
+  }
+  /* Multi-size prices ("Med $17.75 / Large $19.75") get their own line */
+  .item .price.multi { grid-column: 1 / -1; text-align: left; font-size: calc(23px * var(--fs)); margin-top: 3px; }
+  .item .desc {
+    grid-column: 1 / -1; color: var(--dim); font-family: "Barlow", sans-serif; font-weight: 400;
+    font-size: calc(18px * var(--fs)); line-height: 1.2; margin-top: 2px;
+  }
+  .item.flash .price { animation: flash 2.4s ease 3; }
+  @keyframes flash { 0%,100% { color: var(--price); } 50% { color: #fff; text-shadow: 0 0 22px var(--ember); } }
+
+  .item.small .name { font-size: calc(22px * var(--fs)); color: var(--dim); font-weight: 600; }
+  .item.small .price { font-size: calc(22px * var(--fs)); }
+
+  /* Compact rows (long lists) */
+  .panel.compact .item .name { font-size: calc(29px * var(--fs)); }
+  .panel.compact .item .price { font-size: calc(27px * var(--fs)); }
+
+  /* Logo block (tv=2) */
+  .brand { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; min-height: 0; }
+  .brand img { width: 400px; height: auto; margin: -58px 0 -70px; filter: drop-shadow(0 14px 30px rgba(0,0,0,.6)); }
+  .brand .tag {
+    font-family: "Caveat", cursive; font-weight: 700; color: var(--text); text-align: center;
+    font-size: 31px; line-height: 1.12;
+  }
+  .brand .bh { display: flex; align-items: center; gap: 10px; margin-top: 2px; color: var(--gold-hi);
+    font-family: "Oswald", sans-serif; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; font-size: 16px; }
+
+  /* Bottom strip: today's specials / soup / banner */
+  .strip {
+    height: 78px; margin: 0 -22px; display: flex; align-items: center; gap: 26px;
+    padding: 0 30px; overflow: hidden; white-space: nowrap;
+    background: linear-gradient(90deg, #7f1414, var(--red) 30%, #9b1b1b 70%, #5c0f0f);
+    border-top: 3px solid var(--gold);
+    box-shadow: 0 -10px 30px rgba(0,0,0,.5);
+  }
+  .strip .tag {
+    flex: none; font-family: "Oswald", sans-serif; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .1em; font-size: 22px; color: #1a0b05; background: var(--gold);
+    padding: 8px 14px; border-radius: 6px;
+  }
+  .strip .run { flex: 1; min-width: 0; overflow: hidden; font-weight: 700; font-size: 34px; color: #fff; }
+  .strip .run b { font-family: "Oswald", sans-serif; font-weight: 600; color: var(--gold-hi); margin-left: 8px; }
+  .strip .run i { font-style: normal; color: rgba(255,255,255,.55); margin: 0 18px; }
+  .strip .run .inner { display: inline-block; }
+  .strip .run.scroll .inner { animation: ticker var(--dur, 30s) linear infinite; padding-left: 100%; }
+  @keyframes ticker { from { transform: translateX(0); } to { transform: translateX(-100%); } }
+  .strip .alert { color: #fff; background: rgba(0,0,0,.28); padding: 4px 14px; border-radius: 6px; }
+</style>
+</head>
+<body>
+<div id="stage"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // Command center feed (same as the website).
+  const FEED_URL = "https://script.google.com/macros/s/AKfycbzkbxqELRFK9v2PrBRJ0OOehKyHh74gEq3z_cOJWy4HQID9cyS9oWAMzPuflg4UCVkU/exec?feed=1";
+  // Photo headers live in this same repo (menu/v2 section banners).
+  const PHOTO_BASE = "../menu/v2/section-";
+  const LOGO_URL = "https://framerusercontent.com/images/r89APyBCVRfktBf6smnZj6qI.png?width=1536&height=1024";
+  const STORE_KEY = "roccos_board_feed_v1";
+  const REFRESH_MS = 2 * 60 * 1000;
+  const TZ = "America/New_York";
+
+  // Daily specials by weekday (1 = Monday), same as the command center.
+  const DAILY = { 1: ["R001"], 2: ["R002", "R003"], 3: ["R004"] };
+  const PICKUP_DEALS = ["R005", "R006", "R007"]; // Mon to Thu, pickup only
+
+  // Fallback prices: only used on a first load with no internet.
+  const FALLBACK = {
+    R001:"$9.50",R002:"$9.50",R003:"$10.95",R004:"$10.95",R005:"$25.99",R006:"$26.99",R007:"$16.50",
+    R008:"$13.95",R009:"$15.95",R010:"Med $2.00 / Large $2.50",R011:"$19.95",R012:"$4.00 each",R017:"$10.95",
+    R018:"$16.95",R019:"$18.95",R020:"$15.95",R021:"$18.95",R023:"$15.95",R024:"$19.00",R025:"$19.95",
+    R026:"$18.95",R027:"$16.95",R028:"Med $17.75 / Large $19.75 / Sicilian $22.75",R029:"$18.95",R030:"$18.95",
+    R031:"$15.50",R032:"$23.00",R033:"S $10.00 / M $16.00 / L $19.95",R034:"S $10.00 / M $16.00 / L $19.95",
+    R035:"S $10.00 / M $16.00 / L $19.95",R036:"S $10.00 / M $16.00 / L $19.95",R037:"S $10.00 / M $16.00 / L $19.95",
+    R038:"S $10.00 / M $16.00 / L $19.95",R039:"S $10.00 / M $16.00 / L $19.95",R040:"S $10.00 / M $16.00 / L $19.95",
+    R042:"$11.25",R043:"$12.95",R044:"$12.99",R045:"$12.25",R046:"$13.95",R047:"$13.25",R048:"$13.95",
+    R049:"$12.99",R050:"$12.99",R051:"$11.95",R052:"$12.99",R053:"$12.99",R054:"$9.95",R055:"$12.99",
+    R056:"$12.25",R057:"$12.99",R060:"$10.95",R061:"$12.25",R062:"$12.95",R063:"$13.95",R065:"$9.95",
+    R067:"$12.95",R068:"$12.95",R069:"$11.95",R070:"$11.95",R071:"$11.95",R072:"$12.95",R073:"$10.95",
+    R074:"$10.95",R075:"$11.95",R076:"$11.95",R077:"$11.95",R078:"$0.75 each",R079:"$6.50",R080:"$5.25",
+    R081:"$6.99",R082:"$6.99",R083:"$3.00",R084:"$3.00",R085:"$3.75",R086:"$6.99",R087:"$7.99",R088:"$14.99",
+    R089:"$14.95",R090:"$9.25",R091:"$4.50",R092:"$14.95",R093:"$14.95",R094:"$14.95",R096:"$16.95",
+    R099:"$5.00",R100:"$11.95",R101:"$12.95",R102:"$7.50",R103:"$8.95",R104:"$9.50",R105:"$9.50",R106:"$9.95",
+    R107:"$10.25",R108:"$10.95",R109:"$18.95",R110:"$19.95",R111:"$18.95",R112:"$18.95",R113:"$19.95",
+    R114:"$18.95",R115:"$17.95",R116:"$17.95",R117:"$17.95",R123:"$15.95",R124:"$15.95",R125:"$11.95",
+    R126:"$15.95",R127:"$14.95",R128:"$16.95",R129:"$17.95",R130:"$15.95",R131:"$16.95",R132:"$15.95",
+    R133:"$16.95",R134:"$15.95",R135:"$15.95",R136:"$16.95",R137:"$16.95",R138:"$15.95",R139:"$18.95",
+    R140:"$18.95",R141:"$4.95",R142:"$6.95",R143:"$7.95",R144:"$11.95",R145:"$4.75",R146:"$7.95"
+  };
+  // Short names for the bottom strip.
+  const SHORT = {
+    R001: "Large Plain Pizza", R002: "Cheesesteak", R003: "Spaghetti & Meatballs w/ salad & garlic bread",
+    R004: "Antipasto w/ garlic bread", R005: "2 Large Cheese", R006: "2 Jersey Shore", R007: "Tomato Pie"
+  };
+
+  /*
+   * BOARD LAYOUT. Each item: n = name, ids = Sheet IDs (two IDs show
+   * both prices, like "Sausage or Meatball Sandwich"), d = small print,
+   * s = gold star (George's featured items), np = no price shown.
+   * A panel with "sizes" shows one size/price bar under the heading and
+   * hides item prices that match it (Strombolis).
+   */
+  const BOARDS = {
+    1: {
+      cols: "0.82fr 1.42fr 1.42fr 0.98fr",
+      photoH: 170,
+      strip: "specials",
+      panels: [
+        { h: "Classic Pizza", img: "pizza-basics", items: [
+          { n: "Neapolitan Medium", ids: ["R008"], d: "Round thin crust" },
+          { n: "Neapolitan Large", ids: ["R009"] },
+          { n: "Sicilian", ids: ["R011"], d: "Square thick crust, one size" },
+          { n: "All Stuffed", ids: ["R032"], d: "A bit of everything but the anchovies" },
+          { n: "Tomato Pie", ids: ["R031"] },
+          { n: "Gluten Free 10\"", ids: ["R017"] },
+          { n: "Toppings", ids: ["R010"], d: "Mushrooms, pepperoni, anchovies, salami, sausage, meatballs, ground beef, extra cheese, black olives, fresh tomato" },
+          { n: "Sicilian Toppings", ids: ["R012"] }
+        ]},
+        { h: "Specialty Pizza", img: "specialty-pizza", items: [
+          { n: "White Pizza", ids: ["R023"], d: "Garlic, extra virgin olive oil & mozzarella" },
+          { n: "Rocco's Famous Jersey Shore", ids: ["R018"], s: 1, d: "Sweet sauce & white cheddar on a thin crust" },
+          { n: "Breakfast Pizza", ids: ["R019"], d: "Eggs, bacon & Boar's Head Deluxe ham" },
+          { n: "Chunky Chicken", ids: ["R025"], d: "Chunks of white chicken breast" },
+          { n: "Taco Pizza", ids: ["R024"], d: "Homemade taco meat, mozzarella, hot sauce & salsa" },
+          { n: "BBQ Chicken or Steak", ids: ["R029"], d: "BBQ sauce & ranch dressing" },
+          { n: "Hawaiian", ids: ["R026"], d: "Pineapple & Boar's Head Deluxe ham" },
+          { n: "Vegetarian", ids: ["R021"], s: 1, d: "Fresh veggies on classic or white" },
+          { n: "Upside Down", ids: ["R020"], d: "Sauce on top, cheese on the bottom" },
+          { n: "Stuffed Crust", ids: ["R027"] },
+          { n: "Stuffed Pizza", ids: ["R032"] },
+          { n: "“The Works”", ids: ["R028"], d: "Pepperoni, sausage, mushrooms, peppers, ham, onions, anchovies, bacon, salami, black olives" }
+        ]},
+        { h: "Entrees", img: "chef-lucas", sub: "by Chef Lucas", note: "All dinners served with homemade garlic bun & salad. Substitute shrimp or chicken on any dinner.", items: [
+          { n: "Spaghetti with Shrimp", ids: ["R109"], d: "Fresh basil in red sauce" },
+          { n: "Mediterranean Chicken & Shrimp", ids: ["R110"], d: "Sun-dried tomatoes, spinach, capers, kalamata olives, feta, garlic oil" },
+          { n: "Tri-Colored Tortellini Carbonara", ids: ["R111"], d: "Bacon, ham, onions & chicken in a light parmesan cream" },
+          { n: "Gnocchi in Vodka Cream", ids: ["R112"], d: "Shrimp & diced plum tomatoes" },
+          { n: "Chicken & Shrimp Bona Rosa", ids: ["R113"], d: "Spinach & plum tomatoes over pasta" },
+          { n: "Shrimp Caprese", ids: ["R114"], d: "Spicy red wine marinara & fresh mozzarella" },
+          { n: "Chicken Marsala", ids: ["R115"], d: "Mushrooms in a marsala wine sauce" },
+          { n: "Chicken Piccata", ids: ["R116"], d: "White wine & lemon butter sauce" },
+          { n: "Shrimp Scampi", ids: ["R117"] }
+        ]},
+        { h: "Italian Dinners", img: "pasta-platters", note: "Served with field greens salad, homemade croutons & garlic bun", compact: 1, items: [
+          { n: "Spaghetti w/ Marinara", ids: ["R125"] },
+          { n: "w/ Meat Sauce", ids: ["R123"] },
+          { n: "w/ Meatballs", ids: ["R126"] },
+          { n: "w/ Mushrooms", ids: ["R127"] },
+          { n: "w/ Garlic & Oil", ids: ["R130"] },
+          { n: "w/ Clam Sauce", ids: ["R129"], d: "White or red" },
+          { n: "w/ Sausage", ids: ["R128"], d: "Sweet or hot" },
+          { n: "Rigatoni & Meatballs", ids: ["R124"] },
+          { n: "Baked Manicotti", ids: [], np: 1 },
+          { n: "Baked Ziti", ids: ["R135"] },
+          { n: "Lasagna", ids: ["R131"] },
+          { n: "Cheese Ravioli", ids: ["R132"] },
+          { n: "Gnocchi w/ Meatballs", ids: ["R134"] },
+          { n: "Chicken Parmigiana", ids: ["R137"] },
+          { n: "Veal Parmigiana", ids: ["R136"] },
+          { n: "Eggplant Parmigiana", ids: ["R133"] },
+          { n: "Fettuccine Alfredo", ids: ["R138"] },
+          { n: "w/ Chicken or Shrimp", ids: ["R139"] }
+        ]}
+      ]
+    },
+    2: {
+      cols: "0.9fr 0.98fr 1.46fr 1.46fr",
+      photoH: 112,
+      strip: "soup",
+      layout: [
+        // column 1: logo, seafood, sides, kids  (rows)
+        { col: 1, rows: "1.05fr 0.8fr 0.68fr 1fr", panels: ["brand", "seafood", "sides", "kids"] },
+        { col: 2, rows: "0.9fr 1.15fr", panels: ["salads", "strombolis"] },
+        { col: 3, rows: "1.95fr 0.88fr", panels: ["steaks", "burgers"] },
+        { col: 4, rows: "1.62fr 0.72fr", panels: ["hoagies", "apps"] }
+      ],
+      panels: {
+        seafood: { h: "Seafood", note: "Served with French fries", tight: 1, items: [
+          { n: "Fried Clams", ids: ["R101"] },
+          { n: "7 Jumbo Shrimp", ids: ["R100"] }
+        ]},
+        sides: { h: "Sides", tight: 1, items: [
+          { n: "Meatballs or Sausage", ids: ["R141"] },
+          { n: "Homemade Pasta", ids: ["R142"] }
+        ]},
+        kids: { h: "Kids Menu", tight: 1, items: [
+          { n: "Grilled Cheese", ids: ["R145"] },
+          { n: "Mac 'n' Cheese", ids: ["R146"] },
+          { n: "Spaghetti & Meatball", ids: ["R143"] },
+          { n: "Chicken Fingers & Fries", ids: ["R144"] }
+        ]},
+        strombolis: { h: "Strombolis", img: "stromboli", sizes: "R033", items: [
+          { n: "Classic", ids: ["R033"], d: "Ham, salami, cheese, sauce" },
+          { n: "Vegetarian", ids: ["R034"], d: "Broccoli, spinach, mushroom, tomato, green pepper" },
+          { n: "Steak", ids: ["R037"] },
+          { n: "Chicken", ids: ["R038"] },
+          { n: "Bacon", ids: ["R035"] },
+          { n: "Sausage & Pepperoni", ids: ["R039"] },
+          { n: "Pepperoni", ids: ["R036"] },
+          { n: "Ham Calzone", ids: ["R040"], d: "Ham, mozzarella & ricotta" }
+        ]},
+        salads: { h: "Salads", img: "apps-salads", items: [
+          { n: "Antipasti Salad", ids: ["R089"] },
+          { n: "Tossed Salad", ids: ["R090"] },
+          { n: "Dinner Salad", ids: ["R091"] },
+          { n: "Tuna Salad", ids: ["R092"] },
+          { n: "Chef Salad", ids: ["R093"], s: 1 },
+          { n: "Grilled Chicken Caesar", ids: ["R094"] },
+          { n: "Greek w/ Shrimp or Chicken", ids: ["R096"], s: 1 }
+        ]},
+        apps: { h: "Appetizers", grid2: 1, items: [
+          { n: "French Fries", ids: ["R080"] },
+          { n: "Gravy Fries", ids: ["R079"] },
+          { n: "Cheese Fries", ids: ["R081"] },
+          { n: "Onion Rings", ids: ["R082"] },
+          { n: "Pepperoni Stick", ids: ["R083"] },
+          { n: "Fried Mushrooms", ids: ["R086"] },
+          { n: "Mozzarella Sticks", ids: ["R087"] },
+          { n: "Wings", ids: ["R088"] },
+          { n: "Garlic Bread", ids: ["R084"] },
+          { n: "w/ Cheese", ids: ["R085"] }
+        ]},
+        steaks: { h: "Hot Steaks & Subs", img: "steaks-hot-subs", compact: 1, items: [
+          { n: "Steak Sandwich", ids: ["R042"] },
+          { n: "Cheesesteak", ids: ["R043"] },
+          { n: "Pizza Steak", ids: ["R044"] },
+          { n: "Pepper Steak", ids: ["R045"] },
+          { n: "Hoagie Cheesesteak", ids: ["R046"] },
+          { n: "Mushroom Steak", ids: ["R047"] },
+          { n: "Special Steak", ids: ["R048"], d: "Mushrooms, green peppers, pepperoni, lettuce & tomato" },
+          { n: "Plain Chicken Steak", ids: ["R060"] },
+          { n: "Chicken Cheesesteak", ids: ["R061"] },
+          { n: "Chicken Cheesesteak Hoagie", ids: ["R062"] },
+          { n: "Chunky Chicken Breast", ids: ["R063"] },
+          { n: "Meatball or Eggplant Parm", ids: ["R052", "R050"] },
+          { n: "Chicken or Veal Parmigiana", ids: ["R053", "R049"] },
+          { n: "Sausage or Meatball Sandwich", ids: ["R054", "R051"] },
+          { n: "Sausage Parmigiana Sub", ids: ["R055"] },
+          { n: "Sausage & Pepper w/ Cheese", ids: ["R056"] },
+          { n: "Hot Roast Beef", ids: ["R057"] }
+        ]},
+        burgers: { h: "Burgers", items: [
+          { n: "Hamburger", ids: ["R102"] },
+          { n: "Cheeseburger", ids: ["R103"] },
+          { n: "Pizza Burger", ids: ["R104"] },
+          { n: "California Cheeseburger", ids: ["R105"] },
+          { n: "Hawaiian Cheeseburger", ids: ["R107"] },
+          { n: "Texas Burger", ids: ["R106"], d: "Cheddar, bacon, BBQ sauce & an onion ring on brioche" }
+        ]},
+        hoagies: { h: "Hoagies & Sandwiches", sub: "Proudly featuring Boar's Head", compact: 1, items: [
+          { n: "Turkey Hoagie", ids: ["R072"] },
+          { n: "Turkey Club Sandwich", ids: ["R073"], s: 1 },
+          { n: "Italian Hoagie", ids: ["R069"] },
+          { n: "Roast Beef Hoagie", ids: ["R068"] },
+          { n: "American Hoagie", ids: ["R070"] },
+          { n: "Ham & Cheese", ids: ["R075"] },
+          { n: "Mixed Cheese", ids: ["R074"] },
+          { n: "Salami & Provolone", ids: ["R076"] },
+          { n: "Capicola & Provolone", ids: ["R077"] },
+          { n: "Chicken Caesar Salad Hoagie", ids: ["R067"] },
+          { n: "Tuna Fish Hoagie", ids: ["R071"] },
+          { n: "Turkey Panini", ids: ["R108"], d: "Lettuce, tomato, provolone & roasted red peppers" },
+          { n: "Grilled Chicken Sandwich", ids: ["R065"], d: "Fresh mozzarella, lettuce, bruschetta & frizzled onions on brioche" },
+          { n: "Add: cheese, mushrooms, hot & sweet peppers, bacon", ids: ["R078"], small: 1 }
+        ]}
+      }
+    }
+  };
+
+  /* ---------- state ---------- */
+  const tv = String(new URLSearchParams(location.search).get("tv") || "1") === "2" ? 2 : 1;
+  let prices = Object.assign({}, FALLBACK);
+  let settings = { soup: "", banner: "", soupList: [] };
+  let lastPrices = null;
+
+  /* ---------- helpers ---------- */
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  }
+  function pretty(p) { return esc(p).replace(/\s*\/\s*/g, " &middot; "); }
+  function priceFor(ids) {
+    const list = ids.map(id => prices[id]).filter(Boolean);
+    if (!list.length) return "";
+    const same = list.every(p => p === list[0]);
+    return same ? list[0] : list.join(" / ");
+  }
+  function weekday() { // 1 = Monday ... 7 = Sunday, in the shop's time zone
+    const d = new Date().toLocaleDateString("en-US", { timeZone: TZ, weekday: "short" });
+    return { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 }[d] || 1;
+  }
+
+  /* ---------- drawing ---------- */
+  function itemHtml(it, sizePrice) {
+    const p = it.np ? "" : priceFor(it.ids);
+    const hide = sizePrice && p === sizePrice; // Strombolis: price shown once in the size bar
+    const multi = /\//.test(p) || p.length > 9;
+    // Multi-size price: name, then the size prices, then the small print.
+    return '<div class="item' + (it.small ? ' small' : '') + '" data-ids="' + it.ids.join(",") + '">' +
+      '<div class="name">' + (it.s ? '<span class="star">&#9733;</span>' : '') + esc(it.n) + '</div>' +
+      '<div class="price' + (multi ? ' multi' : '') + '">' + (hide ? '' : pretty(p)) + '</div>' +
+      (it.d ? '<div class="desc">' + esc(it.d) + '</div>' : '') +
+      '</div>';
+  }
+
+  function panelHtml(pn, key) {
+    if (key === "brand") {
+      return '<div class="panel brand" style="border:none;background:none;box-shadow:none">' +
+        '<img src="' + LOGO_URL + '" alt="Rocco’s Pizza">' +
+        '<div class="tag">Makers of artisan pizza<br>Buying locally sourced products<br>Homemade &amp; fresh ingredients</div>' +
+        '</div>';
+    }
+    let sizeBar = "", sizePrice = "";
+    if (pn.sizes) {
+      sizePrice = prices[pn.sizes] || "";
+      const parts = sizePrice.split("/").map(x => x.trim()).filter(Boolean);
+      sizeBar = '<div class="sizebar">' + parts.map(x => {
+        const m = x.match(/^(\S+)\s+(.*)$/);
+        const label = m ? ({ S: "Small", M: "Medium", L: "Large" }[m[1]] || m[1]) : "";
+        return '<span>' + (m ? '<em>' + esc(label) + '</em>' + esc(m[2]) : esc(x)) + '</span>';
+      }).join("") + '</div>';
+    }
+    const cls = "panel" + (pn.compact ? " compact" : "");
+    const itemsStyle = pn.grid2 ? ' style="display:grid;grid-template-columns:1fr 1fr;column-gap:26px;align-content:space-evenly"' : '';
+    const photo = pn.img
+      ? '<div class="photo" style="--ph:' + (BOARDS[tv].photoH || 150) + 'px"><i style="background-image:url(\'' + PHOTO_BASE + pn.img + '.webp\')"></i></div>'
+      : '';
+    return '<div class="' + cls + (pn.img ? ' has-photo' : '') + '"' + (pn.tight ? ' style="--hs:.78"' : '') + '>' +
+      photo +
+      '<h2>' + esc(pn.h) + '</h2>' +
+      (pn.sub ? '<div class="sub">' + esc(pn.sub) + '</div>' : '') +
+      (pn.note ? '<div class="note">' + esc(pn.note) + '</div>' : '') +
+      sizeBar +
+      '<div class="items"' + itemsStyle + '>' + pn.items.map(it => itemHtml(it, sizePrice)).join("") + '</div>' +
+      '</div>';
+  }
+
+  function stripHtml() {
+    const B = BOARDS[tv];
+    let tag = "", parts = [];
+    if (B.strip === "specials") {
+      const day = weekday();
+      const todays = (DAILY[day] || []).map(id => esc(SHORT[id]) + '<b>' + esc(prices[id] || "") + '</b>');
+      if (todays.length) { tag = "Today's Special"; parts = parts.concat(todays); }
+      if (day <= 4) {
+        if (!tag) tag = "Pickup Deals";
+        parts.push('Pickup Mon–Thu: ' + PICKUP_DEALS.map(id => esc(SHORT[id]) + '<b>' + esc(prices[id] || "") + '</b>').join('<i>&bull;</i>'));
+      }
+      if (!parts.length) {
+        tag = "Gluten Free";
+        parts.push('10" Gluten Free Pizza<b>' + esc(prices.R017 || "") + '</b>');
+        parts.push('All pasta dishes available gluten free');
+      }
+    } else {
+      const soups = (settings.soupList && settings.soupList.length)
+        ? settings.soupList.map(s => s.name)
+        : (settings.soup ? [settings.soup] : []);
+      if (soups.length) {
+        tag = soups.length > 1 ? "Soups of the Day" : "Soup of the Day";
+        parts.push(soups.map(esc).join(' &amp; ') + '<b>' + esc(prices.R099 || "") + '</b>');
+      }
+      if (settings.banner) {
+        if (!tag) tag = "Today";
+        parts.push('<span class="alert">' + esc(settings.banner) + '</span>');
+      }
+      if (!parts.length) {
+        tag = "Boar's Head";
+        parts.push("Proudly serving Boar's Head meats &amp; cheeses");
+      }
+    }
+    return '<div class="tag">' + esc(tag) + '</div><div class="run"><span class="inner">' + parts.join('<i>&bull;</i>') + '</span></div>';
+  }
+
+  function draw() {
+    const B = BOARDS[tv];
+    const stage = document.getElementById("stage");
+    let grid;
+    if (tv === 1) {
+      grid = '<div class="grid" style="grid-template-columns:' + B.cols + '">' +
+        B.panels.map(p => panelHtml(p)).join("") + '</div>';
+    } else {
+      grid = '<div class="grid" style="grid-template-columns:' + B.cols + '">' +
+        B.layout.map(c => '<div style="display:grid;gap:16px;min-height:0;grid-template-rows:' + c.rows + '">' +
+          c.panels.map(k => panelHtml(B.panels[k], k)).join("") + '</div>').join("") +
+        '</div>';
+    }
+    stage.innerHTML = grid + '<div class="strip">' + stripHtml() + '</div>';
+    fitAll();
+    tickerIfNeeded();
+  }
+
+  /* Shrink text if anything overflows (long multi-size prices), then
+     use the same size on every panel of the board. */
+  function fitAll() {
+    document.querySelectorAll(".panel:not(.brand)").forEach(panel => {
+      let fs = 1;
+      panel.style.setProperty("--fs", fs);
+      const items = panel.querySelector(".items");
+      const over = () => panel.scrollHeight > panel.clientHeight + 1 ||
+        (items && items.scrollHeight > items.clientHeight + 1) ||
+        [...panel.querySelectorAll(".item")].some(i => i.scrollWidth > i.clientWidth + 1);
+      while (over() && fs > 0.6) {
+        fs = Math.round((fs - 0.04) * 100) / 100;
+        panel.style.setProperty("--fs", fs);
+      }
+      panel.dataset.fs = fs;
+    });
+    // One text size per board: every panel matches the tightest one,
+    // so nothing looks randomly bigger or smaller than its neighbor.
+    const all = [...document.querySelectorAll(".panel:not(.brand)")];
+    const min = Math.min.apply(null, all.map(p => Number(p.dataset.fs || 1)));
+    all.forEach(p => p.style.setProperty("--fs", min));
+  }
+
+  /* The strip scrolls only when the text is wider than the screen. */
+  function tickerIfNeeded() {
+    const run = document.querySelector(".strip .run");
+    const inner = run && run.querySelector(".inner");
+    if (!inner) return;
+    run.classList.remove("scroll");
+    if (inner.scrollWidth > run.clientWidth) {
+      run.classList.add("scroll");
+      run.style.setProperty("--dur", Math.max(18, inner.scrollWidth / 90) + "s");
+    }
+  }
+
+  /* ---------- scale + anti burn-in ---------- */
+  function scale() {
+    const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    const st = document.getElementById("stage");
+    st.style.transform = "translate(-50%, -50%) scale(" + s + ")";
+  }
+  let drift = 0;
+  function nudge() {
+    const offs = [[0,0],[3,2],[-3,2],[3,-2],[-3,-2],[0,3]];
+    drift = (drift + 1) % offs.length;
+    const st = document.getElementById("stage");
+    st.style.marginLeft = offs[drift][0] + "px";
+    st.style.marginTop = offs[drift][1] + "px";
+  }
+
+  /* ---------- feed ---------- */
+  function apply(feed) {
+    if (!feed || !Array.isArray(feed.items)) return false;
+    const next = Object.assign({}, FALLBACK);
+    feed.items.forEach(it => { if (it && it.id && it.price) next[it.id] = String(it.price).trim(); });
+    const changed = lastPrices ? Object.keys(next).filter(id => next[id] !== lastPrices[id]) : [];
+    prices = next;
+    lastPrices = next;
+    settings = Object.assign({ soup: "", banner: "", soupList: [] }, feed.settings || {});
+    draw();
+    // Flash anything that just changed so it catches the eye.
+    changed.forEach(id => document.querySelectorAll('.item[data-ids*="' + id + '"]').forEach(el => el.classList.add("flash")));
+    return true;
+  }
+
+  function load() {
+    fetch(FEED_URL, { cache: "no-store" })
+      .then(r => r.json())
+      .then(feed => {
+        if (apply(feed)) { try { localStorage.setItem(STORE_KEY, JSON.stringify(feed)); } catch (e) {} }
+      })
+      .catch(() => { /* keep showing the last good prices */ });
+  }
+
+  function boot() {
+    scale();
+    window.addEventListener("resize", () => { scale(); });
+    let stored = null;
+    try { stored = JSON.parse(localStorage.getItem(STORE_KEY) || "null"); } catch (e) {}
+    if (!stored || !apply(stored)) draw();
+    // Fonts change text widths: refit once they land.
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(() => { fitAll(); tickerIfNeeded(); });
+    load();
+    setInterval(load, REFRESH_MS);
+    setInterval(nudge, 10 * 60 * 1000);
+    // Midnight-ish redraw (today's special changes) and a 4 am reload for code updates.
+    setInterval(() => {
+      const h = Number(new Date().toLocaleString("en-US", { timeZone: TZ, hour: "numeric", hour12: false }));
+      if (h === 4 && performance.now() > 2 * 3600 * 1000) location.reload();
+      else draw();
+    }, 30 * 60 * 1000);
+  }
+
+  boot();
+})();
+</script>
+</body>
+</html>
