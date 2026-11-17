@@ -66,6 +66,7 @@
   .sec { display: flex; flex-direction: column; min-height: 0; }
   .sec.grow { flex: 1; }
   .sec .section-title { font-size: calc(27px * var(--fs)); letter-spacing: .15em; gap: 14px; }
+  .sec .bh-logo { display: block; width: calc(300px * var(--fs)); max-width: 100%; height: auto; margin: calc(10px * var(--fs)) 0 calc(4px * var(--fs)); filter: drop-shadow(0 2px 6px rgba(0,0,0,.5)); }
   .sec .by { font-family: "Oswald", sans-serif; font-weight: 500; letter-spacing: .2em; text-transform: uppercase; font-size: calc(14px * var(--fs)); color: var(--brass-hi); margin-top: 6px; }
   .sec .meta { font-size: calc(16px * var(--fs)); color: var(--ivory-3); margin-top: 6px; line-height: 1.3; font-weight: 500; }
   .rows { margin-top: calc(14px * var(--fs)); display: flex; flex-direction: column; gap: calc(10px * var(--fs)); }
@@ -243,7 +244,7 @@
           ]}
         ],
         [
-          { h: "Hoagies", by: "Proudly featuring Boar’s Head", grow: 1, items: [
+          { h: "Hoagies", logo: "img/boars-head-pf-white.png", grow: 1, items: [
             { n: "Turkey Hoagie", ids: ["R072"] },
             { n: "Turkey Club", ids: ["R073"], s: 1 },
             { n: "Italian Hoagie", ids: ["R069"] },
@@ -260,7 +261,6 @@
             { n: "Add-ons: cheese, mushrooms, peppers, bacon", ids: ["R078"], note: 1 }
           ]},
           { h: "Seafood", meta: "With French fries", items: [
-            { n: "Fried Clams", ids: ["R101"] },
             { n: "7 Jumbo Shrimp", ids: ["R100"] }
           ]}
         ],
@@ -380,6 +380,7 @@
     return '<section class="sec' + (sec.grow ? ' grow' : '') + '">' +
       '<div class="section-title">' + esc(sec.h) + '</div>' +
       (sec.by ? '<div class="by">' + esc(sec.by) + '</div>' : '') +
+      (sec.logo ? '<img class="bh-logo" src="' + sec.logo + '" alt="Proudly Featuring Boar’s Head">' : '') +
       (sec.meta ? '<div class="meta">' + esc(sec.meta) + '</div>' : '') + body + '</section>';
   }
 
@@ -412,7 +413,7 @@
       const banner = RS.settings.banner;
       let html = "";
       if (soups.length) html += '<div class="k">' + (soups.length > 1 ? "Soups of the Day" : "Soup of the Day") + '</div><div class="t">' + soups.map(esc).join(" &amp; ") + '<span class="price">' + RS.p("R099") + '</span></div>';
-      else html += '<div class="k">Proudly Featuring</div><div class="t">Boar’s Head meats &amp; cheeses</div>';
+      else html += '<img src="img/boars-head-pf-white.png" alt="Proudly Featuring Boar’s Head" style="display:block;width:78%;height:auto;margin:4px 0 6px">';
       if (banner) html += '<div class="s" style="color:var(--ivory)">' + esc(banner) + '</div>';
       return html;
     }
