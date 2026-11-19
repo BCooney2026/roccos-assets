@@ -72,9 +72,17 @@
   };
 
   /* ---------- stage ---------- */
+  // Fit the stage to what the TV actually shows. Some kiosk browsers (Fully
+  // Kiosk on Google TV) report a page twice the size of the screen, so we
+  // measure the visible area (visualViewport) and center on that.
   function scale() {
     const st = document.querySelector(".stage");
-    const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    const vv = window.visualViewport;
+    const w = vv ? vv.width : window.innerWidth;
+    const h = vv ? vv.height : window.innerHeight;
+    const s = Math.min(w / 1920, h / 1080);
+    st.style.left = ((vv ? vv.offsetLeft : 0) + w / 2) + "px";
+    st.style.top = ((vv ? vv.offsetTop : 0) + h / 2) + "px";
     st.style.transform = "translate(-50%, -50%) scale(" + s + ")";
   }
   let drift = 0;
@@ -103,6 +111,8 @@
   RS.start = function (render) {
     scale();
     window.addEventListener("resize", scale);
+    if (window.visualViewport) { visualViewport.addEventListener("resize", scale); visualViewport.addEventListener("scroll", scale); }
+    setTimeout(scale, 1500); // kiosk browsers sometimes settle their size late
     try { apply(JSON.parse(localStorage.getItem(STORE_KEY) || "null")); } catch (e) {}
     render();
     const load = () => fetch(FEED_URL, { cache: "no-store" })
