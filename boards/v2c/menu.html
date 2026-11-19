@@ -1,0 +1,1052 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rocco's Pizza Menu</title>
+<!--
+  ROCCO'S MENU BOARD 2.0, CANDIDATE C (boards/v2c/)
+  Same feed, same player (../signage.js), same photos as the live boards.
+  Clips go in boards/v2c/video/ (none published yet).
+    menu.html?tv=1   Pizza & Italian
+    menu.html?tv=2   Steaks, Hoagies, Salads, Burgers, Strombolis,
+                     Appetizers, Seafood, Kids, Sides
+  Options:  &motion=0   still pictures only (no movement)
+            &promo=ID   hold one promo on screen (ID from PROMOS)
+            &day=2      preview another weekday (1 = Monday)
+            &video=0    never play video, stills only
+            &testvideo=FILE   preview a clip from v2c/video as an
+                        unpriced brand spot (add &testposter=PHOTO)
+            &debug=1    troubleshooting box (never leave it on)
+
+  WHAT IS THE SAME AS THE LIVE BOARD (boards/menu.html)
+  - Every item and every price. Prices come from the command center feed
+    through the shared player (../signage.js). Nothing is typed here.
+  - Add / remove from the tablet, the 2 minute refresh, the last good
+    feed kept on the TV, the 4 am reload, pixel drift, the TV zoom fix.
+
+  WHAT IS NEW
+  - Type: Barlow Semi Condensed for items and prices (bigger letters in
+    the same width), Oswald headings, Playfair Display for the hero.
+    Fonts are stored in v2/fonts, so the board no longer needs Google
+    Fonts to look right.
+  - Menu: open columns with a header plate per category instead of
+    boxed cards (more room for bigger text). Every column is spaced to
+    end on the same line.
+  - Fit: tightens spacing first, then text. Below FS_FLOOR the board is
+    flagged "small" (see &debug=1) instead of shrinking quietly. It
+    still never clips an item.
+  - Hero: a promo engine. Each promo in PROMOS has a schedule (days,
+    hours, dates), a price linked to a Sheet ID, and real photo art.
+    A promo is skipped when its photo fails to load, its item was
+    removed on the tablet, or it is out of schedule. If nothing is
+    left, the Rocco's brand card shows. The rotation follows the clock,
+    so a TV that restarts drops back into step.
+-->
+<style>
+  @font-face { font-family: "Barlow SC"; font-weight: 500; font-display: swap; src: url("fonts/barlow-semi-condensed-latin-500-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Barlow SC"; font-weight: 600; font-display: swap; src: url("fonts/barlow-semi-condensed-latin-600-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Barlow SC"; font-weight: 700; font-display: swap; src: url("fonts/barlow-semi-condensed-latin-700-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Oswald"; font-weight: 500; font-display: swap; src: url("fonts/oswald-latin-500-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Oswald"; font-weight: 600; font-display: swap; src: url("fonts/oswald-latin-600-normal.woff2") format("woff2"); }
+  @font-face { font-family: "Playfair Display"; font-style: italic; font-weight: 900; font-display: swap; src: url("fonts/playfair-display-latin-900-italic.woff2") format("woff2"); }
+
+  :root {
+    --bg: #171411;
+    --surface: #25201c;
+    --ivory: #fffaf3;
+    --ivory-2: #d8c8b5;
+    --ivory-3: rgba(232, 220, 204, .8);
+    --tomato: #d1402f;
+    --gold: #d8ab69;
+    --price: #f6cd86;
+    --rule: rgba(216, 171, 105, .3);
+    --hair: rgba(255, 245, 233, .13);
+    --ease: cubic-bezier(.16, 1, .3, 1);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #000; cursor: none; }
+
+  /* Fixed 1920x1080 stage; ../signage.js scales and centers it on the TV. */
+  .stage { position: fixed; left: 50%; top: 50%; width: 1920px; height: 1080px; overflow: hidden;
+    transform-origin: center center; color: var(--ivory); background: var(--bg);
+    font-family: "Barlow SC", "Arial Narrow", Arial, sans-serif;
+    transition: margin .8s ease; -webkit-font-smoothing: antialiased; --fs: 1; --pad: 5; }
+  .env { position: absolute; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(1100px 800px at 72% 30%, rgba(255, 214, 160, .05), transparent 62%),
+      linear-gradient(180deg, #1d1915 0%, #171411 50%, #110f0d 100%); }
+  .env::after { content: ""; position: absolute; inset: 0;
+    background: radial-gradient(130% 120% at 50% 45%, transparent 58%, rgba(0, 0, 0, .55) 100%); }
+
+  .price { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; letter-spacing: -.005em; }
+  .price sup { font-size: .52em; vertical-align: top; position: relative; top: .14em; margin-left: 1px; }
+
+  /* =====================================================================
+     MENU (right). Stable: nothing here moves except a changed price.
+     ===================================================================== */
+  .menu { position: absolute; left: 490px; right: 0; top: 0; bottom: 0; padding: 22px 30px 22px 38px;
+    display: grid; column-gap: 32px; }
+  .col { min-height: 0; display: flex; flex-direction: column; gap: calc(20px * var(--fs)); }
+
+  .sec { display: flex; flex-direction: column; flex: none; }
+  /* Category plate: the fastest thing to find from across the room. */
+  .sec-h { margin: 0 -12px; padding: calc(5px * var(--fs)) 12px calc(4px * var(--fs)) 20px; overflow: hidden; position: relative;
+    background: linear-gradient(90deg, #2d2621, var(--surface) 70%, rgba(37, 32, 28, .55));
+    border-radius: 4px; box-shadow: 0 6px 18px rgba(0, 0, 0, .28);
+    font-family: "Oswald", "Arial Narrow", sans-serif; font-weight: 600; text-transform: uppercase;
+    font-size: calc(31px * var(--fs)); line-height: 1.15; letter-spacing: .13em; color: var(--ivory); white-space: nowrap; }
+  .sec-h::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 7px; background: var(--tomato); border-radius: 4px 0 0 4px; }
+  .sec .bh-logo { display: block; width: calc(250px * var(--fs)); max-width: 100%; height: auto; aspect-ratio: 900 / 203; margin: calc(12px * var(--fs)) 0 0; }
+  .sec .by { font-family: "Oswald", sans-serif; font-weight: 500; letter-spacing: .2em; text-transform: uppercase;
+    font-size: calc(16px * var(--fs)); color: var(--gold); margin-top: calc(10px * var(--fs)); }
+  .sec .meta { font-size: calc(19px * var(--fs)); color: var(--gold); margin-top: calc(8px * var(--fs)); line-height: 1.2; font-weight: 500; font-style: italic; }
+  .sec .by + .meta { margin-top: 2px; }
+
+  .rows { margin-top: calc(4px * var(--fs)); display: flex; flex-direction: column; }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 12px; align-items: baseline;
+    padding: calc(var(--pad) * 1px * var(--fs)) 0; }
+  .row + .row { border-top: 1px solid var(--hair); }
+  .row .n { font-weight: 600; font-size: calc(30px * var(--fs)); line-height: 1.06; overflow-wrap: break-word; }
+  .row .n .star { color: var(--tomato); font-size: .7em; margin-right: 6px; position: relative; top: -.14em; }
+  .row .price { font-size: calc(31px * var(--fs)); text-align: right; color: var(--price); }
+  .row .d { grid-column: 1 / -1; font-weight: 500; font-size: calc(20px * var(--fs)); line-height: 1.12; color: var(--ivory-3); margin-top: 1px; }
+  .row.sub .n { font-weight: 500; color: #efe4d4; padding-left: 18px; }
+  .row.note .n, .row.note .price { font-size: calc(20px * var(--fs)); font-weight: 500; color: var(--ivory-3); }
+  .row.hot .n { color: #fff; } .row.hot .price { color: #ff6a55; }
+  .row .lbl { font-family: "Oswald", sans-serif; font-weight: 500; font-size: .56em; letter-spacing: .14em; color: var(--gold); margin: 0 5px 0 12px; text-transform: uppercase; }
+  .row .lbl:first-child { margin-left: 0; }
+  .row.wide .price { grid-column: 1 / -1; text-align: left; margin-top: 2px; }
+  /* A price George just changed pulses three times, then sits still. */
+  .row.pchanged .price { animation: pglow 2.4s ease 3; }
+  @keyframes pglow { 50% { color: #fff; text-shadow: 0 0 18px var(--tomato); } }
+
+  /* Price table (Classics): MED / LG columns */
+  .tbl .head { display: grid; grid-template-columns: minmax(0, 1fr) calc(78px * var(--fs)) calc(78px * var(--fs)); margin-top: calc(10px * var(--fs)); }
+  .tbl .head span { font-family: "Oswald", sans-serif; font-weight: 500; font-size: calc(17px * var(--fs)); letter-spacing: .2em; color: var(--gold); text-align: right; text-transform: uppercase; }
+  .tbl .rows { margin-top: 0; }
+  .tbl .row { grid-template-columns: minmax(0, 1fr) calc(78px * var(--fs)) calc(78px * var(--fs)); }
+  .tbl .row .price.one { grid-column: 2 / 4; }
+
+  .tops { margin-top: calc(10px * var(--fs)); font-size: calc(21px * var(--fs)); line-height: 1.22; color: var(--ivory-2); font-weight: 500; }
+  .tops b { color: var(--ivory); font-weight: 700; font-size: 1.14em; }
+  .tops b .price, .tops .price { color: var(--price); }
+  .tops .sep { color: var(--tomato); margin: 0 7px; }
+
+  .sizes { display: flex; flex-wrap: wrap; gap: 0 calc(18px * var(--fs)); margin-top: calc(10px * var(--fs)); }
+  .sizes span { font-weight: 700; font-size: calc(30px * var(--fs)); white-space: nowrap; color: var(--price); }
+  .sizes em { font-style: normal; font-family: "Oswald", sans-serif; font-weight: 500; font-size: .56em; letter-spacing: .16em; color: var(--gold); margin-right: 6px; text-transform: uppercase; }
+  .flavors { margin-top: calc(6px * var(--fs)); display: flex; flex-wrap: wrap; gap: calc(3px * var(--fs)) calc(16px * var(--fs)); font-weight: 600; font-size: calc(25px * var(--fs)); line-height: 1.12; }
+  .flavors span { white-space: nowrap; }
+  .flavors span::before { content: "\2022"; color: var(--tomato); margin-right: 7px; }
+
+  /* =====================================================================
+     HERO (left). The only part of the board that moves.
+     ===================================================================== */
+  .hero { position: absolute; left: 0; top: 0; bottom: 0; width: 490px; overflow: hidden;
+    display: flex; flex-direction: column;
+    background: linear-gradient(180deg, #0f0d0b 0%, #171310 46%, #0d0b0a 100%);
+    box-shadow: 1px 0 0 var(--rule), 24px 0 60px rgba(0, 0, 0, .35); }
+  /* Key light from the top left and the "table" the food sits on. */
+  .hero::before { content: ""; position: absolute; left: -160px; top: -60px; width: 860px; height: 760px; pointer-events: none;
+    background: radial-gradient(closest-side, rgba(255, 196, 128, .17), rgba(255, 170, 100, .06) 55%, transparent 75%); }
+  .hero-logo { position: relative; z-index: 3; height: 108px; flex: none; }
+  .hero-logo img { position: absolute; left: 12px; top: -8px; width: 186px; height: auto; filter: drop-shadow(0 8px 18px rgba(0, 0, 0, .6)); }
+
+  .slides { position: relative; flex: 1; min-height: 0; }
+  .slide { position: absolute; inset: 0; display: flex; flex-direction: column; opacity: 0; pointer-events: none; }
+  .slide.on { opacity: 1; }
+  .slide.out { opacity: 0; transition: opacity 1.1s ease; }
+
+  .art { position: relative; flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; }
+  .plate { position: relative; flex: none; }
+  .plate img { display: block; width: 100%; height: auto; position: relative; z-index: 1;
+    filter: drop-shadow(0 30px 34px rgba(0, 0, 0, .6)) saturate(1.08) contrast(1.05); }
+  /* Soft contact shadow so the food sits on something instead of floating. */
+  .plate::before { content: ""; position: absolute; left: 6%; right: 6%; bottom: -5%; height: 16%;
+    background: radial-gradient(closest-side, rgba(0, 0, 0, .7), transparent); filter: blur(8px); }
+  /* One light sweep across the food as it arrives (shaped by the photo itself). */
+  .sweep { position: absolute; inset: 0; z-index: 2; opacity: 0;
+    background: linear-gradient(105deg, transparent 42%, rgba(255, 236, 205, .5) 50%, transparent 58%) no-repeat;
+    background-size: 300% 100%; background-position: 120% 0;
+    -webkit-mask-size: 100% 100%; mask-size: 100% 100%; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+
+  .copy { flex: none; padding: 0 28px 0 36px; position: relative; z-index: 2; }
+  .eyebrow { font-family: "Oswald", sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: .3em;
+    color: var(--tomato); font-size: 18px; display: flex; align-items: center; gap: 16px; white-space: nowrap; }
+  .eyebrow::after { content: ""; flex: 1; max-width: 120px; height: 1px; background: linear-gradient(90deg, var(--gold), transparent); }
+  .eyebrow .badge { background: var(--tomato); color: #fff; letter-spacing: .2em; padding: 4px 10px 3px 12px; border-radius: 3px; font-size: 16px; }
+  .title { font-family: "Playfair Display", Georgia, serif; font-weight: 900; font-style: italic; font-size: 66px;
+    line-height: .95; letter-spacing: -.012em; color: var(--ivory); margin-top: 10px; text-shadow: 0 6px 34px rgba(0, 0, 0, .55); }
+  .desc { font-size: 24px; color: var(--ivory-2); margin-top: 12px; font-weight: 500; line-height: 1.2; }
+  .pricebar { display: flex; align-items: center; gap: 18px; margin-top: 12px; }
+  .pricebar i { display: block; width: 46px; height: 3px; background: var(--tomato); transform-origin: left center; }
+  .pricebar .price { font-size: 78px; line-height: 1; color: var(--ivory); }
+  .pricebar .price sup { color: var(--price); }
+  .pricebar small { font-family: "Oswald", sans-serif; font-weight: 500; font-size: 19px; letter-spacing: .2em; text-transform: uppercase; color: var(--gold); }
+
+  /* Type-only promo (a special with no real photo yet): price medallion */
+  .medal { width: 250px; height: 250px; border-radius: 50%; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 34% 28%, #e85a47, var(--tomato) 48%, #972a1e);
+    box-shadow: 0 26px 60px rgba(0, 0, 0, .6), inset 0 0 0 3px rgba(255, 255, 255, .13), 0 0 0 7px rgba(216, 171, 105, .34); color: #fff; }
+  .medal .price { font-size: 96px; line-height: 1; }
+  .medal small { font-family: "Oswald", sans-serif; font-weight: 500; font-size: 19px; letter-spacing: .26em; text-transform: uppercase; margin-top: 6px; opacity: .9; }
+  /* Brand card (Boar's Head, Rocco's) */
+  .brandart { width: 430px; }
+  .brandart img { display: block; width: 100%; height: auto; filter: drop-shadow(0 12px 26px rgba(0, 0, 0, .6)); }
+
+  /* ---- the 12 second sequence. Everything is opacity / transform. ---- */
+  /*
+   * The sequence. The food, the name and the price are there from the
+   * first frame of a promo (they come in together with the cross-fade),
+   * so a glance at any moment reads as a finished ad. Only the light
+   * sweep, the red line and the slow push-in happen afterwards.
+   * Everything is opacity / transform.
+   */
+  .slide.on { animation: fadein .9s ease both; }
+  .slide.on .plate, .slide.on .medal, .slide.on .brandart, .slide.on .clip { animation: arrive 1.1s var(--ease) both; }
+  .slide.on .zoom { animation: pushin var(--dur, 12s) linear both; }
+  .slide.on .sweep { animation: sweep 1.5s ease-in-out .9s both; }
+  .slide.on .eyebrow, .slide.on .title, .slide.on .desc { animation: rise .8s var(--ease) both; }
+  .slide.on .pricebar { animation: rise .8s var(--ease) .1s both; }
+  .slide.on .pricebar i { animation: draw .7s var(--ease) .9s both; }
+  /* Power-on frame: no animation at all, so it cannot sit invisible while
+     a slow or background browser waits to run its first animation frame. */
+  .slide.on.snap, .slide.on.snap * { animation: none !important; }
+  /* Once a promo has faded in, drop the fade so it can never be left half-way. */
+  .slide.on.settled { animation: none; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes arrive { from { transform: translateY(14px) scale(.965); } to { transform: none; } }
+  @keyframes pushin { from { transform: scale(1); } to { transform: scale(1.06); } }
+  @keyframes sweep { 0% { opacity: 1; background-position: 120% 0; } 99% { opacity: 1; background-position: -20% 0; } 100% { opacity: 0; background-position: -20% 0; } }
+  @keyframes rise { from { transform: translateY(12px); } to { transform: none; } }
+  @keyframes draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+  /*
+   * Video promo. The still photo is always underneath and always
+   * visible; the clip only fades in over it once it is really playing,
+   * and fades back out if it stalls or fails. Nobody ever sees a black
+   * box or a spinner.
+   */
+  .clip { position: absolute; left: 0; right: 0; top: -108px; bottom: 0; overflow: hidden; background: #0f0d0b; }
+  .clip img, .clip video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: var(--focus, 50% 50%); display: block; }
+  .clip video { opacity: 0; transition: opacity .7s ease; }
+  .clip video.live { opacity: 1; }
+  .clip::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+    background: linear-gradient(180deg, rgba(15, 13, 11, .62) 0%, transparent 20%, transparent 66%, #14110f 100%); }
+  .slide.has-clip .art { align-items: stretch; }
+  /* Rocco's wordmark card: needs nothing from the network. */
+  .wordmark { text-align: center; }
+  .wordmark b { display: block; font-family: "Playfair Display", Georgia, serif; font-style: italic; font-weight: 900; font-size: 104px; line-height: .9; color: var(--ivory); text-shadow: 0 10px 40px rgba(0, 0, 0, .6); }
+  .wordmark span { display: block; margin-top: 14px; font-family: "Oswald", sans-serif; font-weight: 600; font-size: 30px; letter-spacing: .5em; margin-right: -.5em; text-transform: uppercase; color: var(--gold); }
+  .slide.on .wordmark { animation: arrive 1.1s var(--ease) both; }
+
+  /* Rotation ticks: one per promo, the lit one is on screen. */
+  .ticks { flex: none; display: flex; gap: 8px; padding: 20px 36px 0; height: 40px; }
+  .ticks i { flex: 1; max-width: 46px; height: 3px; border-radius: 2px; background: rgba(255, 245, 233, .16); transition: background .6s ease; }
+  .ticks i.on { background: var(--gold); }
+
+  /* Today card: always on screen, never part of the rotation. */
+  .today { flex: none; margin: 0 24px 22px; padding: 16px 22px 16px; background: var(--surface);
+    border-left: 5px solid var(--tomato); border-radius: 0 4px 4px 0; box-shadow: 0 12px 30px rgba(0, 0, 0, .4); position: relative; z-index: 3; }
+  .today .k { font-family: "Oswald", sans-serif; font-weight: 600; font-size: 16px; letter-spacing: .26em; text-transform: uppercase; color: var(--tomato); }
+  .today .t { font-weight: 700; font-size: 30px; line-height: 1.1; margin-top: 5px; display: flex; justify-content: space-between; align-items: baseline; gap: 14px; }
+  .today .t .price { color: var(--price); font-size: 32px; }
+  .today .s { font-size: 20px; color: var(--ivory-3); margin-top: 3px; font-weight: 500; line-height: 1.2; }
+  .today .s.banner { color: var(--ivory); margin-top: 8px; }
+  .today .phone { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: baseline;
+    font-family: "Oswald", sans-serif; letter-spacing: .18em; text-transform: uppercase; font-size: 15px; color: var(--ivory-3); }
+  .today .phone:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .today .phone b { font-family: "Barlow SC", sans-serif; letter-spacing: .01em; font-size: 30px; color: var(--ivory); font-weight: 700; }
+
+  /* Still mode (&motion=0 or the device asks for reduced motion) */
+  .stage.still .slide.on, .stage.still .slide.on * { animation: none !important; }
+  .stage.still .slide.out { transition: none; }
+  .stage.still .row.pchanged .price { animation: none; }
+
+  #diag { position: absolute; left: 10px; bottom: 10px; z-index: 99; background: #ff0; color: #000; font: bold 20px monospace; padding: 8px 10px; }
+</style>
+</head>
+<body>
+<div class="stage" id="stage">
+  <div class="env"></div>
+  <div class="hero" id="hero">
+    <div class="hero-logo"><img id="logo" alt="" onerror="this.style.display='none'"></div>
+    <div class="slides" id="slides"></div>
+    <div class="ticks" id="ticks"></div>
+    <div class="today" id="today"></div>
+  </div>
+  <div class="menu" id="menu"></div>
+</div>
+<script src="../signage.js?v=3"></script>
+<script>
+(function () {
+  "use strict";
+  const LOGO = "https://framerusercontent.com/images/r89APyBCVRfktBf6smnZj6qI.png?width=1536&height=1024";
+  const IMG = "../img/";               // real photos, shared with the live board
+  const PROMO_SECONDS = 12;            // default time on screen per promo
+  const FS_FLOOR = 0.9;                // below this the board is flagged "small"
+  const PAD_BASE = 5, PAD_MIN = 2, PAD_MAX = 16; // row spacing (px above and below each row)
+  const params = new URLSearchParams(location.search);
+  const tv = String(params.get("tv") || "1") === "2" ? 2 : 1;
+  const DEBUG = params.get("debug") === "1";
+  const VIDEO_DIR = "video/";          // clips live in boards/v2c/video
+  const VIDEO_OFF = params.get("video") === "0";
+  const PIN = params.get("promo") || "";                 // hold one promo (preview / freeze)
+  const weekday = () => Number(params.get("day")) || RS.weekday();   // &day= is for previews only
+  const STILL = params.get("motion") === "0" ||
+    (window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+  // Daily specials by weekday (1 = Monday). Same schedule as the command center.
+  const DAILY = { 1: [["R001", "Large Plain Pizza", "Every Monday"]],
+                  2: [["R002", "Cheesesteak", "Tuesday only"], ["R003", "Spaghetti & Meatballs", "With salad & garlic bread"]],
+                  3: [["R004", "Antipasto", "With garlic bread"]] };
+
+  /*
+   * PROMOS: what the hero panel can show. One entry per promo.
+   *   id        unique name
+   *   tv        1, 2, or leave out for both
+   *   type      signature (evergreen) | daily (today's special) | brand
+   *   eyebrow, title, desc   the words (desc is optional)
+   *   img       real photo cut-out in boards/img (leave out for type only)
+   *   video     optional clip, a file name in v2c/video (played muted).
+   *   poster    the clip's matching still, a file name in v2c/video.
+   *             (Or use img for a photo in boards/img.) A clip must have
+   *             one or the other. The still shows first and stays if the
+   *             clip cannot play. If the still is missing the promo is
+   *             skipped, so an entry is safe to add before its files.
+   *   focus     which part of the clip to keep when it is cropped to the
+   *             tall hero window, as "across down", e.g. "60% 40%"
+   *             (default "50% 50%", the middle)
+   *   footage   "real" (shot at Rocco's) or "stock"
+   *   approved  true only when George has confirmed a stock clip shows
+   *             this exact menu item. Without it a stock clip runs as
+   *             an unpriced brand spot: no item name, no description,
+   *             no price, whatever else the entry says.
+   *   brandTitle  the words a brand spot shows instead of an item name
+   *   priceId   Sheet ID. The price always comes from the feed.
+   *   size      for multi-size prices: which size to show ("S", "Large")
+   *   label     small word after the price ("Large", "Small")
+   *   badge     red tag in the eyebrow ("Today Only")
+   *   days      weekdays it may show, 1 = Monday ... 7 = Sunday
+   *   hours     [from, to] in 24 hour shop time, e.g. [11, 15]
+   *   from, until   first / last date, "2026-12-24"
+   *   seconds   time on screen (default PROMO_SECONDS)
+   *   priority  higher shows first in the rotation
+   *   enabled   false switches it off
+   *   art       { w: photo width in px, x, y: nudge in px, rot: degrees }
+   * A promo is skipped (never shown broken) when it is out of schedule,
+   * its photo did not load, or its item has no price or was removed.
+   */
+  const PROMOS = [
+    // ----- TV 1 -----
+    { id: "mon-pizza", tv: 1, type: "daily", days: [1], priority: 10, badge: "Today Only", eyebrow: "Monday Special",
+      title: "Large Plain Pizza", desc: "Every Monday", img: "pizza-cheese.webp", priceId: "R001", art: { w: 590, x: -34 } },
+    { id: "tue-spaghetti", tv: 1, type: "daily", days: [2], priority: 10, badge: "Today Only", eyebrow: "Tuesday Special",
+      title: "Spaghetti & Meatballs", desc: "With salad & garlic bread", priceId: "R003" },
+    { id: "jersey-shore", tv: 1, type: "signature", eyebrow: "Rocco’s Famous", title: "Jersey Shore",
+      desc: "Sweet sauce & white cheddar on a thin crust", img: "pizza-jersey-shore.webp", priceId: "R018", art: { w: 590, x: -34 } },
+    { id: "neapolitan", tv: 1, type: "signature", eyebrow: "The Original", title: "Neapolitan",
+      desc: "Round, thin crust", img: "pizza-cheese.webp", priceId: "R009", label: "Large", art: { w: 590, x: -34 } },
+    { id: "ravioli", tv: 1, type: "signature", eyebrow: "Italian Dinners", title: "Cheese Ravioli",
+      desc: "Cheese filled ravioli in red sauce. With salad & garlic bun", img: "ravioli-tray.webp", priceId: "R132", art: { w: 440 } },
+    { id: "pickup-deal", tv: 1, type: "signature", days: [1, 2, 3, 4], eyebrow: "Pickup Deal · Mon to Thu", title: "Two Large Cheese",
+      desc: "Pickup only. Toppings extra", img: "pizza-cheese.webp", priceId: "R005", art: { w: 590, x: -34 } },
+    // Stock footage (Pexels 3752509, Ricky Esquivel): brand spot only.
+    // No item name and no price while "approved" is not true. Shows as
+    // soon as BOTH files below are in v2c/video; skipped until then.
+    { id: "slice-lift", tv: 1, type: "brand", footage: "stock", priority: 5, seconds: 9,
+      eyebrow: "Phoenixville", brandTitle: "Rocco’s Pizza",
+      video: "slice-lift.mp4", poster: "slice-lift.jpg", focus: "50% 50%" },
+    // ----- TV 2 -----
+    { id: "tue-cheesesteak", tv: 2, type: "daily", days: [2], priority: 10, badge: "Today Only", eyebrow: "Tuesday Special",
+      title: "Cheesesteak", desc: "Tuesday only", priceId: "R002" },
+    { id: "wed-antipasto", tv: 2, type: "daily", days: [3], priority: 10, badge: "Today Only", eyebrow: "Wednesday Special",
+      title: "Antipasto", desc: "With garlic bread", img: "antipasto.webp", priceId: "R004", art: { w: 470 } },
+    { id: "chicken-cheesesteak", tv: 2, type: "signature", eyebrow: "Steaks & Subs", title: "Chicken Cheesesteak",
+      desc: "Thin sliced grilled chicken smothered in melted cheese", img: "chicken-cheesesteak.webp", priceId: "R061", art: { w: 400, y: 14 } },
+    { id: "caesar-hoagie", tv: 2, type: "signature", eyebrow: "Hoagies", title: "Chicken Caesar Hoagie",
+      desc: "Chicken, crisp romaine & creamy Caesar on a long roll", img: "chicken-caesar-hoagie.webp", priceId: "R067", art: { w: 430, rot: -12 } },
+    { id: "eggplant-parm", tv: 2, type: "signature", eyebrow: "Hot Subs", title: "Eggplant Parm",
+      desc: "Homemade breaded eggplant, red sauce & melted cheese", img: "eggplant-parm-sub.webp", priceId: "R050", art: { w: 490 } },
+    { id: "stromboli", tv: 2, type: "signature", eyebrow: "Strombolis", title: "Stromboli",
+      desc: "Baked golden, in three sizes", img: "stromboli.webp", priceId: "R033", size: "S", label: "Small", art: { w: 430, rot: -10 } },
+    { id: "antipasto", tv: 2, type: "signature", eyebrow: "Salads", title: "Antipasto",
+      img: "antipasto.webp", priceId: "R089", art: { w: 470 } },
+    { id: "boars-head", tv: 2, type: "brand", eyebrow: "On Our Hoagies", brandImg: "boars-head-pf-white.png", seconds: 8 }
+  ];
+  // Always available, needs nothing from the network but the logo.
+  const BRAND_CARD = { id: "roccos", type: "brand", eyebrow: "Pickup & Delivery", title: "610-935-2202", wordmark: true };
+  // Preview only: &testvideo=FILE shows a clip as a stock brand spot.
+  if (params.get("testvideo")) PROMOS.push({ id: "testvideo", type: "brand", footage: "stock", priority: 99,
+    eyebrow: "Rocco’s Pizza", brandTitle: "Phoenixville", video: params.get("testvideo"),
+    img: params.get("testposter") || "pizza-cheese.webp", focus: params.get("focus") || "", priceId: "R009", title: "Never shown", desc: "Never shown" });
+
+  /** A stock clip that George has not approved for an exact item is a brand spot. */
+  const isBrandSpot = p => !!p.video && p.footage === "stock" && p.approved !== true;
+  /** A clip's still: its poster (in v2c/video, beside the clip) or its photo (boards/img). */
+  const stillSrc = p => p.poster ? VIDEO_DIR + p.poster : (p.img ? IMG + p.img : "");
+
+  /*
+   * BOARDS. Section types: rows (default), tbl (price table with
+   * columns), tops (toppings text), inline (one-price flavors line).
+   * Items: n = name, ids = Sheet IDs (two IDs = both prices), d = small
+   * line, s = George's star, sub = indented "w/ ..." line, hot = red,
+   * note = small grey line, np = no price yet.
+   *
+   * Add / remove (tablet): liveColumns() drops any row whose IDs George
+   * removed, and adds items he created on the tablet (R149 and up, not
+   * already placed on either board) to the end of the section that
+   * holds the most items from the same Sheet category.
+   */
+  const BOARDS = {
+    1: {
+      cols: "minmax(0,1.04fr) minmax(0,.92fr) minmax(0,1.07fr) minmax(0,1.09fr)",
+      columns: [
+        [
+          { h: "The Classics", type: "tbl", head: ["Med", "Lg"], items: [
+            { n: "Neapolitan", ids: ["R008", "R009"], d: "Round, thin crust" },
+            { n: "Sicilian", ids: ["R011"], d: "Square, thick crust, one size" },
+            { n: "Tomato Pie", ids: ["R031"] },
+            { n: "Gluten Free", ids: ["R017"], d: "10-inch pie" }
+          ]},
+          { h: "By the Slice", items: [
+            { n: "Plain Slice", ids: ["R015"] },
+            { n: "Special Slice", ids: ["R016"] }
+          ]},
+          { h: "Toppings", type: "tops" },
+          { h: "Pickup Deals", meta: "Monday to Thursday, pickup only. Toppings extra.", items: [
+            { n: "2 Large Cheese", ids: ["R005"] },
+            { n: "2 Jersey Shore", ids: ["R006"] },
+            { n: "Tomato Pie", ids: ["R007"] }
+          ]}
+        ],
+        [
+          { h: "Specialty Pies", items: [
+            { n: "Jersey Shore", ids: ["R018"], s: 1, hot: 1, d: "Sweet sauce & white cheddar, thin crust" },
+            { n: "White Pizza", ids: ["R023"], d: "Garlic, olive oil & mozzarella" },
+            { n: "Breakfast Pizza", ids: ["R019"], d: "Eggs, bacon & Boar’s Head ham" },
+            { n: "Chunky Chicken", ids: ["R025"], d: "Chunks of white chicken breast" },
+            { n: "Taco Pizza", ids: ["R024"], d: "Taco meat, mozzarella, hot sauce & salsa" },
+            { n: "BBQ Chicken or Steak", ids: ["R029"], d: "BBQ sauce & ranch" },
+            { n: "Hawaiian", ids: ["R026"], d: "Pineapple & Boar’s Head ham" },
+            { n: "Vegetarian", ids: ["R021"], s: 1, d: "Fresh veggies, red or white" },
+            { n: "Upside Down", ids: ["R020"], d: "Sauce on top, cheese underneath" },
+            { n: "Stuffed Crust", ids: ["R027"] },
+            { n: "All Stuffed", ids: ["R032"], d: "A bit of everything but the anchovies" },
+            { n: "“The Works”", ids: ["R028"], d: "10 toppings" }
+          ]}
+        ],
+        [
+          { h: "Chef Lucas", by: "Chef-made entrées", meta: "With garlic bun & salad. Sub shrimp or chicken on any dinner.", items: [
+            { n: "Spaghetti with Shrimp", ids: ["R109"], d: "Fresh basil, red sauce" },
+            { n: "Mediterranean Chicken & Shrimp", ids: ["R110"], d: "Sun-dried tomato, spinach, capers, olives, feta" },
+            { n: "Tortellini Carbonara", ids: ["R111"], d: "Bacon, ham & chicken, parmesan cream" },
+            { n: "Gnocchi in Vodka Cream", ids: ["R112"], d: "Shrimp & plum tomatoes" },
+            { n: "Chicken & Shrimp Bona Rosa", ids: ["R113"], d: "Spinach & plum tomatoes over pasta" },
+            { n: "Shrimp Caprese", ids: ["R114"], d: "Spicy red wine marinara, fresh mozzarella" },
+            { n: "Chicken Marsala", ids: ["R115"], d: "Mushrooms, marsala wine sauce" },
+            { n: "Chicken Piccata", ids: ["R116"], d: "White wine & lemon butter" },
+            { n: "Shrimp Scampi", ids: ["R117"] }
+          ]}
+        ],
+        [
+          { h: "Italian Dinners", meta: "With field greens salad & garlic bun", items: [
+            { n: "Spaghetti, Marinara", ids: ["R125"] },
+            { n: "w/ Meat Sauce", ids: ["R123"], sub: 1 },
+            { n: "w/ Meatballs", ids: ["R126"], sub: 1 },
+            { n: "w/ Mushrooms", ids: ["R127"], sub: 1 },
+            { n: "w/ Garlic & Oil", ids: ["R130"], sub: 1 },
+            { n: "w/ Clam Sauce", ids: ["R129"], sub: 1 },
+            { n: "w/ Sausage", ids: ["R128"], sub: 1 },
+            { n: "Rigatoni & Meatballs", ids: ["R124"] },
+            { n: "Baked Ziti", ids: ["R135"] },
+            { n: "Baked Manicotti", ids: [], np: 1 },
+            { n: "Lasagna", ids: ["R131"] },
+            { n: "Cheese Ravioli", ids: ["R132"] },
+            { n: "Gnocchi & Meatballs", ids: ["R134"] },
+            { n: "Chicken Parmigiana", ids: ["R137"] },
+            { n: "Veal Parmigiana", ids: ["R136"] },
+            { n: "Eggplant Parmigiana", ids: ["R133"] },
+            { n: "Fettuccine Alfredo", ids: ["R138"] },
+            { n: "w/ Chicken or Shrimp", ids: ["R139"], sub: 1 }
+          ]}
+        ]
+      ]
+    },
+    2: {
+      cols: "minmax(0,1.04fr) minmax(0,.95fr) minmax(0,1.13fr) minmax(0,1fr)",
+      columns: [
+        [
+          { h: "Steaks & Subs", items: [
+            { n: "Steak Sandwich", ids: ["R042"] },
+            { n: "Cheesesteak", ids: ["R043"] },
+            { n: "Pizza Steak", ids: ["R044"] },
+            { n: "Pepper Steak", ids: ["R045"] },
+            { n: "Hoagie Cheesesteak", ids: ["R046"] },
+            { n: "Mushroom Steak", ids: ["R047"] },
+            { n: "Special Steak", ids: ["R048"], d: "Mushrooms, peppers, pepperoni, lettuce & tomato" },
+            { n: "Chicken Steak", ids: ["R060"] },
+            { n: "Chicken Cheesesteak", ids: ["R061"] },
+            { n: "Chicken Cheesesteak Hoagie", ids: ["R062"] },
+            { n: "Chunky Chicken Breast", ids: ["R063"] },
+            { n: "Meatball or Eggplant Parm", ids: ["R052", "R050"] },
+            { n: "Chicken or Veal Parm", ids: ["R053", "R049"] },
+            { n: "Sausage Sandwich", ids: ["R054"] },
+            { n: "Meatball Sandwich", ids: ["R051"] },
+            { n: "Sausage Parm Sub", ids: ["R055"] },
+            { n: "Sausage & Peppers w/ Cheese", ids: ["R056"] },
+            { n: "Hot Roast Beef", ids: ["R057"] }
+          ]}
+        ],
+        [
+          { h: "Hoagies", logo: "boars-head-pf-white.png", items: [
+            { n: "Turkey Hoagie", ids: ["R072"] },
+            { n: "Turkey Club", ids: ["R073"], s: 1 },
+            { n: "Italian Hoagie", ids: ["R069"] },
+            { n: "Roast Beef Hoagie", ids: ["R068"] },
+            { n: "American Hoagie", ids: ["R070"] },
+            { n: "Ham & Cheese", ids: ["R075"] },
+            { n: "Mixed Cheese", ids: ["R074"] },
+            { n: "Salami & Provolone", ids: ["R076"] },
+            { n: "Capicola & Provolone", ids: ["R077"] },
+            { n: "Chicken Caesar Hoagie", ids: ["R067"] },
+            { n: "Tuna Fish Hoagie", ids: ["R071"] },
+            { n: "Turkey Panini", ids: ["R108"] },
+            { n: "Grilled Chicken Sandwich", ids: ["R065"] },
+            { n: "Add-ons: cheese, mushrooms, peppers, bacon", ids: ["R078"], note: 1 }
+          ]},
+          { h: "Seafood", meta: "With French fries", items: [
+            { n: "7 Jumbo Shrimp", ids: ["R100"] }
+          ]}
+        ],
+        [
+          { h: "Salads", items: [
+            { n: "Antipasti", ids: ["R089"] },
+            { n: "Chef Salad", ids: ["R093"], s: 1 },
+            { n: "Greek w/ Shrimp or Chicken", ids: ["R096"], s: 1 },
+            { n: "Grilled Chicken Caesar", ids: ["R094"] },
+            { n: "Tuna Salad", ids: ["R092"] },
+            { n: "Tossed Salad", ids: ["R090"] },
+            { n: "Dinner Salad", ids: ["R091"] }
+          ]},
+          { h: "Burgers", items: [
+            { n: "Hamburger", ids: ["R102"] },
+            { n: "Cheeseburger", ids: ["R103"] },
+            { n: "Pizza Burger", ids: ["R104"] },
+            { n: "California Cheeseburger", ids: ["R105"] },
+            { n: "Hawaiian Cheeseburger", ids: ["R107"] },
+            { n: "Texas Burger", ids: ["R106"], d: "Cheddar, bacon, BBQ & an onion ring" }
+          ]},
+          { h: "Sides", items: [
+            { n: "Meatballs or Sausage", ids: ["R141"] },
+            { n: "Homemade Pasta", ids: ["R142"] }
+          ]}
+        ],
+        [
+          { h: "Strombolis", type: "inline", sizes: "R033", items: [
+            { n: "Classic", ids: ["R033"] }, { n: "Vegetarian", ids: ["R034"] },
+            { n: "Steak", ids: ["R037"] }, { n: "Chicken", ids: ["R038"] },
+            { n: "Bacon", ids: ["R035"] }, { n: "Pepperoni", ids: ["R036"] },
+            { n: "Sausage & Pepperoni", ids: ["R039"] }, { n: "Ham Calzone", ids: ["R040"] }
+          ]},
+          { h: "Appetizers", items: [
+            { n: "French Fries", ids: ["R080"] },
+            { n: "Gravy Fries", ids: ["R079"] },
+            { n: "Cheese Fries", ids: ["R081"] },
+            { n: "Onion Rings", ids: ["R082"] },
+            { n: "Mozzarella Sticks", ids: ["R087"] },
+            { n: "Fried Mushrooms", ids: ["R086"] },
+            { n: "Wings", ids: ["R088"] },
+            { n: "Pepperoni Stick", ids: ["R083"] },
+            { n: "Garlic Bread", ids: ["R084"] },
+            { n: "w/ Cheese", ids: ["R085"], sub: 1 }
+          ]},
+          { h: "Kids", items: [
+            { n: "Grilled Cheese", ids: ["R145"] },
+            { n: "Mac ’n’ Cheese", ids: ["R146"] },
+            { n: "Spaghetti & Meatball", ids: ["R143"] },
+            { n: "Chicken Fingers & Fries", ids: ["R144"] }
+          ]}
+        ]
+      ]
+    }
+  };
+
+  const B = BOARDS[tv];
+  const esc = RS.esc;
+  const stage = document.getElementById("stage");
+  if (STILL) stage.classList.add("still");
+
+  /* =====================================================================
+     MENU DATA: add / remove from the tablet
+     ===================================================================== */
+  // Items R001 to R148 were placed (or left off, like R099 and R101) by
+  // hand. Only IDs above this were added on the tablet.
+  const LAST_BUILT_ID = 148;
+  const isTabletItem = id => { const m = /^R(\d+)$/.exec(String(id)); return !!m && Number(m[1]) > LAST_BUILT_ID; };
+  // Every ID on both boards, so an item on the other TV is never "new" here.
+  const KNOWN = new Set();
+  Object.keys(BOARDS).forEach(k => BOARDS[k].columns.forEach(col => col.forEach(sec => {
+    if (sec.sizes) KNOWN.add(sec.sizes);
+    (sec.items || []).forEach(it => it.ids.forEach(id => KNOWN.add(id)));
+  })));
+
+  /** This board's columns with removed rows dropped and new items added. */
+  function liveColumns() {
+    const cat = {};
+    RS.items.forEach(it => { cat[it.id] = String(it.category || ""); });
+
+    // Which section on this board holds the most items from each category.
+    const tally = {};
+    const cols = B.columns.map(col => col.map(sec => Object.assign({}, sec, { items: sec.items ? sec.items.slice() : sec.items })));
+    cols.forEach(col => col.forEach(sec => (sec.items || []).forEach(it => it.ids.forEach(id => {
+      const c = cat[id];
+      if (!c) return;
+      tally[c] = tally[c] || new Map();
+      tally[c].set(sec, (tally[c].get(sec) || 0) + 1);
+    }))));
+    const homeFor = c => {
+      const m = tally[c];
+      if (!m) return null;
+      return [...m.entries()].sort((a, b) => b[1] - a[1])[0][0];
+    };
+
+    RS.items.forEach(it => {
+      if (!isTabletItem(it.id) || KNOWN.has(it.id) || RS.isRemoved(it.id) || !it.item) return;
+      const sec = homeFor(String(it.category || ""));
+      if (sec) sec.items.push({ n: String(it.item).trim(), ids: [it.id] });
+    });
+
+    return cols.map(col => col
+      .map(sec => sec.items ? Object.assign(sec, { items: sec.items.filter(it => !it.ids.length || !it.ids.every(RS.isRemoved)) }) : sec)
+      .filter(sec => !sec.items || sec.items.length));
+  }
+
+  /* =====================================================================
+     MENU DRAWING
+     ===================================================================== */
+  function sizesHtml(str) {
+    const map = { S: "Sm", M: "Med", L: "Lg", Med: "Med", Large: "Lg", Sicilian: "Sic" };
+    return String(str).split("/").map(part => {
+      const m = part.trim().match(/^([A-Za-z]+)\s+(.*)$/);
+      return m ? '<span class="lbl">' + esc(map[m[1]] || m[1]) + '</span>' + RS.money(m[2]) : RS.money(part.trim());
+    }).join("");
+  }
+  function priceHtml(it) {
+    if (it.np || !it.ids.length) return "";
+    const list = it.ids.map(id => RS.price(id)).filter(Boolean);
+    if (!list.length) return "";
+    if (list.length > 1 && !list.every(x => x === list[0])) return list.map(RS.money).join(" / ");
+    return /\//.test(list[0]) ? sizesHtml(list[0]) : RS.money(list[0]);
+  }
+  function rowHtml(it) {
+    const raw = it.ids.map(id => RS.price(id)).join("|");
+    const wide = /\//.test(raw) && it.ids.length === 1;
+    return '<div class="row' + (it.sub ? ' sub' : '') + (it.note ? ' note' : '') + (it.hot ? ' hot' : '') + (wide ? ' wide' : '') + '" data-ids="' + it.ids.join(",") + '">' +
+      '<div class="n">' + (it.s ? '<span class="star">&#9733;</span>' : '') + esc(it.n) + '</div>' +
+      '<div class="price">' + priceHtml(it) + '</div>' +
+      (it.d ? '<div class="d">' + esc(it.d) + '</div>' : '') + '</div>';
+  }
+  function tblRow(it) {
+    const cells = it.ids.length === 2
+      ? '<div class="price">' + RS.p(it.ids[0]) + '</div><div class="price">' + RS.p(it.ids[1]) + '</div>'
+      : '<div class="price one">' + RS.p(it.ids[0]) + '</div>';
+    return '<div class="row" data-ids="' + it.ids.join(",") + '"><div class="n">' + esc(it.n) + '</div>' + cells +
+      (it.d ? '<div class="d">' + esc(it.d) + '</div>' : '') + '</div>';
+  }
+  function secHtml(sec) {
+    let body = "";
+    if (sec.type === "tbl") {
+      body = '<div class="tbl"><div class="head"><span></span>' + sec.head.map(h => '<span>' + esc(h) + '</span>').join("") + '</div>' +
+        '<div class="rows">' + sec.items.map(tblRow).join("") + '</div></div>';
+    } else if (sec.type === "tops") {
+      const med = RS.size("R010", "Med"), lg = RS.size("R010", "Large"), sic = RS.price("R012").replace(/\s*each/i, "");
+      const extra = RS.price("R013").replace(/\s*extra/i, "");
+      const p = v => '<span class="price">' + RS.money(v) + '</span>';
+      body = '<div class="tops"><b>Med ' + p(med) + '</b><span class="sep">•</span><b>Lg ' + p(lg) + '</b><span class="sep">•</span><b>Sicilian ' + p(sic) + '</b><br>' +
+        'Mushrooms, pepperoni, sausage, meatballs, ground beef, salami, anchovies, black olives, fresh tomato, extra cheese' +
+        (extra ? '<br><b>Bacon, broccoli or spinach ' + p(extra) + '</b>' : '') + '</div>';
+    } else if (sec.type === "inline") {
+      const sizeStr = RS.price(sec.sizes);
+      body = '<div class="sizes">' + sizeStr.split("/").map(part => {
+          const m = part.trim().match(/^([A-Za-z]+)\s+(.*)$/);
+          const label = m ? ({ S: "Sm", M: "Med", L: "Lg" }[m[1]] || m[1]) : "";
+          return '<span class="price">' + (m ? '<em>' + esc(label) + '</em>' + RS.money(m[2]) : RS.money(part)) + '</span>';
+        }).join("") + '</div>' +
+        '<div class="flavors">' + sec.items.map(it => {
+          const own = it.ids.map(id => RS.price(id)).join("|");
+          return '<span>' + esc(it.n) + (own && own !== sizeStr ? ' ' + priceHtml(it) : '') + '</span>';
+        }).join("") + '</div>';
+    } else {
+      body = '<div class="rows">' + sec.items.map(rowHtml).join("") + '</div>';
+    }
+    return '<section class="sec"><div class="sec-h">' + esc(sec.h) + '</div>' +
+      (sec.logo ? '<img class="bh-logo" src="' + IMG + sec.logo + '" alt="Proudly Featuring Boar’s Head" onerror="this.style.display=\'none\'">' : '') +
+      (sec.by ? '<div class="by">' + esc(sec.by) + '</div>' : '') +
+      (sec.meta ? '<div class="meta">' + esc(sec.meta) + '</div>' : '') + body + '</section>';
+  }
+
+  function drawMenu() {
+    const menu = document.getElementById("menu");
+    menu.style.gridTemplateColumns = B.cols;
+    menu.innerHTML = liveColumns().map(c => '<div class="col">' + c.map(secHtml).join("") + '</div>').join("");
+    fit();
+  }
+
+  /*
+   * FIT. Order matters:
+   *   1. Tighten row spacing (text stays full size).
+   *   2. Shrink all text together, one small step at a time.
+   *   3. Below FS_FLOOR keep going so nothing is ever cut off, but flag
+   *      the board "small" so it shows up in &debug=1. That is the cue
+   *      to move a category to the other TV, not to live with tiny text.
+   * Then every column gets its own row spacing so all columns end on
+   * the same line.
+   */
+  let fitState = { fs: 1, pad: PAD_BASE, small: false };
+  function fit() {
+    const cols = [...document.querySelectorAll(".menu .col")];
+    // offsetHeight / clientHeight are layout pixels on the 1920x1080 stage.
+    // (getBoundingClientRect is NOT: it shrinks or grows with the stage
+    // when the TV scales it, which made rows run off the bottom at 720p.)
+    const natural = c => [...c.children].reduce((h, s) => h + s.offsetHeight, 0) +
+      (c.children.length - 1) * parseFloat(getComputedStyle(c).rowGap || 0);
+    // A long category name tightens its own letter spacing before it is
+    // allowed to shrink the whole board.
+    const heads = [...document.querySelectorAll(".menu .sec-h")];
+    const fitHeads = () => heads.forEach(h => {
+      let ls = 0.13; h.style.letterSpacing = "";
+      while (h.scrollWidth > h.clientWidth + 1 && ls > 0.02) { ls = Math.round((ls - 0.01) * 100) / 100; h.style.letterSpacing = ls + "em"; }
+    });
+    const over = () => { fitHeads(); return cols.some(c => natural(c) > c.clientHeight - 2) ||
+      [...document.querySelectorAll(".menu .row, .menu .sec-h")].some(r => r.scrollWidth > r.clientWidth + 1); };
+    const set = (fs, pad) => { stage.style.setProperty("--fs", fs); stage.style.setProperty("--pad", pad); };
+    cols.forEach(c => c.style.removeProperty("--pad"));
+
+    let fs = 1, pad = PAD_BASE;
+    set(fs, pad);
+    while (over() && pad > PAD_MIN) { pad -= 1; set(fs, pad); }
+    while (over() && fs > 0.6) { fs = Math.round((fs - 0.01) * 100) / 100; set(fs, pad); }
+
+    // Share out the leftover space so the columns bottom-align.
+    cols.forEach(c => {
+      const rows = c.querySelectorAll(".row").length;
+      if (!rows) return;
+      const free = c.clientHeight - 2 - natural(c);
+      const extra = Math.floor((free / (rows * 2 * fs)) * 10) / 10;
+      if (extra > 0) c.style.setProperty("--pad", Math.min(PAD_MAX, pad + extra));
+      // Belt and braces: sharing out space must never push a row off the end.
+      if (natural(c) > c.clientHeight) c.style.removeProperty("--pad");
+    });
+
+    fitState = { fs: fs, pad: pad, small: fs < FS_FLOOR };
+    stage.dataset.fs = fs;
+    stage.dataset.fit = fitState.small ? "small" : "ok";
+    diag();
+  }
+
+  /* =====================================================================
+     HERO: promo scheduler + stage
+     ===================================================================== */
+  const photoShape = {}; // file -> width / height
+  let started = false;
+  const photoOk = {};   // file -> true / false once the browser has tried it
+  let pendingPhotos = 0, photosSettled = false;
+  /** Every photo has either loaded or failed: pick the right promo once, finished. */
+  function settlePhotos() {
+    if (photosSettled) return;
+    photosSettled = true;
+    if (started) showPromo(true);
+  }
+  function preload(file, dir) {
+    if (!file || file in photoOk) return;
+    photoOk[file] = null;
+    pendingPhotos++;
+    const done = ok => {
+      photoOk[file] = ok;
+      if (--pendingPhotos === 0) settlePhotos();
+      // A photo that arrives late joins at the next change of promo,
+      // unless only the wordmark card is up: then bring the food in now.
+      else if (photosSettled && started && current && current === slides[BRAND_CARD.id]) showPromo(false);
+    };
+    const im = new Image();
+    im.onload = () => { photoShape[file] = im.naturalWidth / im.naturalHeight; done(true); };
+    im.onerror = () => done(false);
+    im.src = (dir || IMG) + file;
+  }
+  PROMOS.forEach(p => { if (!p.tv || p.tv === tv) { preload(p.img); preload(p.brandImg); preload(p.poster, VIDEO_DIR); } });
+
+  function shopHour() {
+    return Number(new Date().toLocaleString("en-US", { timeZone: RS.TZ, hour: "numeric", hour12: false })) % 24;
+  }
+  function promoPrice(p) {
+    if (!p.priceId || isBrandSpot(p)) return "";
+    return p.size ? RS.size(p.priceId, p.size) : RS.price(p.priceId);
+  }
+  /** Promos that may show right now, highest priority first. */
+  function eligible() {
+    const day = weekday(), hour = shopHour(), today = RS.today();
+    const list = PROMOS.filter(p => {
+      if (p.enabled === false) return false;
+      if (p.tv && p.tv !== tv) return false;
+      if (p.days && p.days.indexOf(day) < 0) return false;
+      if (p.hours && (hour < p.hours[0] || hour >= p.hours[1])) return false;
+      if (p.from && today < p.from) return false;
+      if (p.until && today > p.until) return false;
+      if (p.img && photoOk[p.img] !== true) return false;
+      if (p.brandImg && photoOk[p.brandImg] !== true) return false;
+      if (p.video && !stillSrc(p)) return false;                // a clip must have a still
+      if (p.poster && photoOk[p.poster] !== true) return false;
+      if (p.priceId && !isBrandSpot(p) && (RS.isRemoved(p.priceId) || !promoPrice(p))) return false;
+      return true;
+    });
+    // Until the photos have settled (a moment after power-on) only the
+    // wordmark card shows, so the hero never flips through half a list.
+    if (!photosSettled) return [BRAND_CARD];
+    list.sort((a, b) => (b.priority || 0) - (a.priority || 0));
+    const pinned = PIN && list.filter(p => p.id === PIN);
+    if (pinned && pinned.length) return pinned;
+    return list.length ? list : [BRAND_CARD];
+  }
+  const secondsOf = p => Math.max(4, Number(p.seconds) || PROMO_SECONDS);
+
+  /** Which promo the clock says is on right now, and how long until the next. */
+  function clockPick(list) {
+    const total = list.reduce((s, p) => s + secondsOf(p), 0);
+    let pos = (Date.now() / 1000) % total;
+    for (let i = 0; i < list.length; i++) {
+      const s = secondsOf(list[i]);
+      if (pos < s) return { index: i, left: s - pos };
+      pos -= s;
+    }
+    return { index: 0, left: secondsOf(list[0]) };
+  }
+
+  const slides = {};    // promo id -> element
+  function slideFor(p) {
+    if (slides[p.id]) return slides[p.id];
+    const el = document.createElement("div");
+    el.className = "slide";
+    const a = p.art || {};
+    const spot = isBrandSpot(p);
+    let art;
+    if (p.video) {
+      // Still first; the <video> is added only while this promo is on screen.
+      el.classList.add("has-clip");
+      art = '<div class="clip" style="--focus:' + esc(p.focus || "50% 50%") + '"><img src="' + stillSrc(p) + '" alt=""></div>';
+    } else if (p.img) {
+      const src = IMG + p.img;
+      art = '<div class="plate" style="width:' + (a.w || 460) + 'px;margin-left:' + (a.x || 0) + 'px;margin-top:' + (a.y || 0) + 'px;transform-origin:center">' +
+        '<div class="zoom"><div style="position:relative;transform:rotate(' + (a.rot || 0) + 'deg)"><img src="' + src + '" alt="">' +
+        '<div class="sweep" style="-webkit-mask-image:url(' + src + ');mask-image:url(' + src + ')"></div></div></div></div>';
+    } else if (p.brandImg) {
+      art = '<div class="brandart"><img src="' + IMG + p.brandImg + '" alt=""></div>';
+    } else if (p.wordmark) {
+      art = '<div class="wordmark"><b>Rocco’s</b><span>Pizza</span></div>';
+    } else {
+      art = '<div class="medal"><span class="price"></span>' + (p.badge ? '<small>' + esc(p.badge) + '</small>' : '') + '</div>';
+    }
+    const medalOnly = !p.video && !p.img && !p.brandImg && !p.wordmark;
+    const title = spot ? (p.brandTitle || "") : (p.title || "");
+    const desc = spot ? "" : (p.desc || "");
+    const priced = !!p.priceId && !spot && !medalOnly;
+    el.innerHTML = '<div class="art">' + art + '</div><div class="copy">' +
+      '<div class="eyebrow">' + (p.badge && !medalOnly && !spot ? '<span class="badge">' + esc(p.badge) + '</span>' : '') + '<span>' + esc(p.eyebrow || "") + '</span></div>' +
+      (title ? '<div class="title">' + esc(title) + '</div>' : '') +
+      (desc ? '<div class="desc">' + esc(desc) + '</div>' : '') +
+      (priced ? '<div class="pricebar"><i></i><span class="price"></span>' + (p.label ? '<small>' + esc(p.label) + '</small>' : '') + '</div>' : '') +
+      '</div>';
+    document.getElementById("slides").appendChild(el);
+    slides[p.id] = el;
+    return el;
+  }
+  /**
+   * Live price into a slide, then make it fit: long titles step down
+   * until they take two lines, and the photo shrinks if the Today card
+   * is tall, so the food never runs into the words.
+   */
+  function dressSlide(p, el) {
+    el.style.setProperty("--dur", secondsOf(p) + "s");
+    el.querySelectorAll(".price").forEach(n => { n.innerHTML = RS.money(promoPrice(p)); });
+    const t = el.querySelector(".title");
+    if (t) {
+      let size = 66; t.style.fontSize = size + "px";
+      const lines = () => Math.round(t.offsetHeight / (size * 0.95));   // layout px, not scaled px
+      while ((t.scrollWidth > t.clientWidth + 1 || lines() > 2) && size > 44) { size -= 2; t.style.fontSize = size + "px"; }
+    }
+    const plate = el.querySelector(".plate");
+    if (plate && photoShape[p.img]) {
+      const a = p.art || {};
+      const room = el.querySelector(".art").clientHeight - 52 - Math.abs(a.y || 0);
+      const tilt = Math.abs(a.rot || 0) * Math.PI / 180;
+      // Height the photo takes at width 1 (a tilted photo stands taller).
+      const tall = Math.cos(tilt) / photoShape[p.img] + Math.sin(tilt);
+      const full = a.w || 460, w = Math.round(Math.min(full, room / tall));
+      plate.style.width = w + "px";
+      plate.style.marginLeft = Math.round((a.x || 0) * w / full) + "px";
+    }
+  }
+
+  /*
+   * VIDEO. One clip at a time, only while its promo is on screen.
+   * The still stays visible until the clip is truly playing ("playing"
+   * plus a first frame), and comes back if the clip errors, never
+   * starts within 8 seconds, or stalls for 3 seconds. A clip that failed
+   * is left alone for 10 minutes, then tried again.
+   */
+  const videoBad = {};          // file -> time it last failed
+  let liveVideo = null;
+  function stopVideo() {
+    if (!liveVideo) return;
+    const v = liveVideo; liveVideo = null;
+    clearTimeout(v._watch);
+    v.classList.remove("live");
+    setTimeout(() => { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} v.remove(); }, 800);
+  }
+  function startVideo(p, el) {
+    stopVideo();
+    if (!p.video || STILL || VIDEO_OFF) return;
+    if (videoBad[p.video] && Date.now() - videoBad[p.video] < 10 * 60 * 1000) return;
+    const box = el.querySelector(".clip");
+    if (!box) return;
+    const v = document.createElement("video");
+    v.muted = true; v.defaultMuted = true; v.loop = true; v.playsInline = true; v.autoplay = true;
+    v.setAttribute("muted", ""); v.setAttribute("playsinline", ""); v.setAttribute("preload", "auto");
+    v.disablePictureInPicture = true;
+    const fail = why => {
+      if (liveVideo !== v) return;
+      videoBad[p.video] = Date.now();
+      videoNote = p.video + " " + why;
+      stopVideo(); diag();
+    };
+    const watch = (ms, why) => { clearTimeout(v._watch); v._watch = setTimeout(() => fail(why), ms); };
+    v.addEventListener("playing", () => { clearTimeout(v._watch); });
+    // Show the clip only after a frame has really been drawn.
+    v.addEventListener("timeupdate", () => { if (v.currentTime > 0.05 && liveVideo === v) { v.classList.add("live"); videoNote = p.video + " playing"; } });
+    v.addEventListener("waiting", () => watch(3000, "stalled"));
+    v.addEventListener("stalled", () => { if (!v.classList.contains("live")) watch(8000, "no data"); });
+    v.addEventListener("error", () => fail("error"));
+    liveVideo = v;
+    watch(8000, "did not start");
+    v.src = VIDEO_DIR + p.video;
+    box.appendChild(v);
+    const playing = v.play();
+    if (playing && playing.catch) playing.catch(() => fail("blocked"));
+  }
+  let videoNote = "";
+
+  let current = null, heroTimer = null, heroList = [], bootAt = 0;
+  function showPromo(first) {
+    clearTimeout(heroTimer);
+    heroList = eligible();
+    const pick = clockPick(heroList);
+    const p = heroList[pick.index];
+    const el = slideFor(p);
+
+    if (current !== el) {
+      if (current) {
+        const old = current;
+        old.classList.remove("on", "snap", "settled"); old.classList.add("out");
+        setTimeout(() => old.classList.remove("out"), 1200);
+      }
+      el.classList.remove("out", "snap", "settled");
+      dressSlide(p, el);
+      void el.offsetWidth;                       // restart the sequence
+      // First frame after power-on (and the first food photo to land
+      // after it) appears finished, with no entrance.
+      if (first === true || Date.now() - bootAt < 4000) el.classList.add("snap");
+      el.classList.add("on");
+      current = el;
+      setTimeout(() => { if (current === el) el.classList.add("settled"); }, 1600);
+      startVideo(p, el);
+    } else {
+      dressSlide(p, el);
+    }
+    document.getElementById("ticks").innerHTML = heroList.length > 1
+      ? heroList.map((x, i) => '<i class="' + (i === pick.index ? 'on' : '') + '"></i>').join("") : "";
+    diag();
+    heroTimer = setTimeout(showPromo, Math.max(500, pick.left * 1000 + 30));
+  }
+  /** Fresh prices arrived: update what is on screen without restarting it. */
+  function refreshHero() {
+    PROMOS.concat(BRAND_CARD).forEach(p => { if (slides[p.id]) dressSlide(p, slides[p.id]); });
+    // If the promo on screen just became invalid (item removed), move on now.
+    const now = heroList.length ? heroList[clockPick(heroList).index] : null;
+    if (!current || !now || eligible().indexOf(now) < 0) showPromo(false);
+  }
+
+  /* ---------- Today card (always on screen) ---------- */
+  function todayCard() {
+    const line = (k, t, id, s) => (k ? '<div class="k">' + k + '</div>' : '') +
+      '<div class="t"><span>' + esc(t) + '</span><span class="price">' + RS.p(id) + '</span></div>' +
+      (s ? '<div class="s">' + s + '</div>' : '');
+
+    // TV 2 leads with the soup when George has one set.
+    let main = "";
+    if (tv === 2 && !RS.isRemoved("R099")) {
+      const soups = (RS.settings.soupList && RS.settings.soupList.length) ? RS.settings.soupList.map(s => s.name)
+        : (RS.settings.soup ? [RS.settings.soup] : []);
+      if (soups.length) main = line(soups.length > 1 ? "Soups of the Day" : "Soup of the Day", soups.join(" & "), "R099");
+    }
+    // Otherwise: today's special, the pickup deal (Mon to Thu), or gluten free.
+    if (!main) {
+      const day = weekday();
+      const todays = (DAILY[day] || []).filter(t => RS.price(t[0]));
+      if (todays.length) main = todays.map((t, i) => line(i ? "" : "Today’s Special", t[1], t[0], esc(t[2]))).join("");
+      else if (day <= 4 && RS.price("R005")) main = line("Pickup Deal · Mon to Thu", "2 Large Cheese", "R005",
+        "2 Jersey Shore " + RS.money(RS.price("R006")) + " · Tomato Pie " + RS.money(RS.price("R007")));
+      else if (RS.price("R017")) main = line("Gluten Free", "10″ Gluten Free Pizza", "R017", "All pasta dishes available gluten free");
+    }
+    const banner = tv === 2 && RS.settings.banner ? '<div class="s banner">' + esc(RS.settings.banner) + '</div>' : "";
+    return main + banner + '<div class="phone">Pickup &amp; Delivery<b>610-935-2202</b></div>';
+  }
+  function drawToday() { document.getElementById("today").innerHTML = todayCard(); }
+
+  /* ---------- diagnostics (&debug=1 only) ---------- */
+  let feedAt = 0;
+  function diag() {
+    if (!DEBUG) return;
+    let d = document.getElementById("diag");
+    if (!d) { d = document.createElement("div"); d.id = "diag"; stage.appendChild(d); }
+    const bad = Object.keys(photoOk).filter(f => photoOk[f] === false);
+    d.textContent = "v2c tv" + tv + " | text " + Math.round(fitState.fs * 100) + "%" + (fitState.small ? " TOO SMALL" : "") +
+      " pad " + fitState.pad + " | promos " + heroList.map(p => p.id).join(",") +
+      " | feed " + (feedAt ? Math.round((Date.now() - feedAt) / 60000) + " min ago" : "saved copy") +
+      (bad.length ? " | MISSING " + bad.join(",") : "") + (videoNote ? " | video " + videoNote : "") + (VIDEO_OFF ? " | video off" : "") + (STILL ? " | still" : "");
+  }
+
+  /* =====================================================================
+     START
+     ===================================================================== */
+  document.getElementById("logo").src = LOGO;
+  let lastPrices = null, renders = 0;
+  RS.start(function () {
+    const prev = lastPrices;
+    lastPrices = Object.assign({}, RS.prices);
+    if (++renders > 1) feedAt = Date.now();     // first draw is the saved copy
+    drawMenu();
+    drawToday();
+    if (started) refreshHero();
+    if (prev) Object.keys(RS.prices).filter(id => RS.prices[id] !== prev[id]).forEach(id =>
+      document.querySelectorAll('.row[data-ids*="' + id + '"]').forEach(el => el.classList.add("pchanged")));
+  });
+  // Start at once: the wordmark card needs nothing from the network, and
+  // the first food promo snaps in the moment its photo has loaded.
+  bootAt = Date.now(); started = true;
+  if (pendingPhotos === 0) photosSettled = true;
+  showPromo(true);
+  setTimeout(settlePhotos, 1500);      // slow connection: go with what has loaded
+  // Fonts are only fetched when first used, so ask for them up front and
+  // measure everything again when they (and the page) are in.
+  const wanted = ['600 30px "Barlow SC"', '700 30px "Barlow SC"', '500 30px "Barlow SC"', '600 30px "Oswald"', '500 16px "Oswald"', 'italic 900 66px "Playfair Display"'];
+  const remeasure = () => { fit(); PROMOS.concat(BRAND_CARD).forEach(p => { if (slides[p.id]) dressSlide(p, slides[p.id]); }); };
+  if (document.fonts && document.fonts.load) Promise.all(wanted.map(f => document.fonts.load(f).catch(() => null))).then(remeasure);
+  window.addEventListener("load", remeasure);
+  setTimeout(remeasure, 5000);
+  // Midnight: today's special and the daily promos change.
+  setInterval(drawToday, 10 * 60 * 1000);
+})();
+</script>
+</body>
+</html>
