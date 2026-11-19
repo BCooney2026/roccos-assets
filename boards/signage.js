@@ -84,6 +84,12 @@
     st.style.left = ((vv ? vv.offsetLeft : 0) + w / 2) + "px";
     st.style.top = ((vv ? vv.offsetTop : 0) + h / 2) + "px";
     st.style.transform = "translate(-50%, -50%) scale(" + s + ")";
+    // ?debug=1 shows what the TV reports, for troubleshooting a new screen.
+    if (/[?&]debug=1/.test(location.search)) {
+      let d = document.getElementById("rsdebug");
+      if (!d) { d = document.createElement("div"); d.id = "rsdebug"; d.style.cssText = "position:fixed;left:10px;top:10px;z-index:99;background:#ff0;color:#000;font:bold 28px monospace;padding:10px"; document.body.appendChild(d); }
+      d.textContent = "inner " + innerWidth + "x" + innerHeight + " | vv " + (vv ? Math.round(vv.width) + "x" + Math.round(vv.height) + " zoom " + vv.scale : "none") + " | dpr " + devicePixelRatio + " | screen " + screen.width + "x" + screen.height + " | v2";
+    }
   }
   let drift = 0;
   function nudge() {
