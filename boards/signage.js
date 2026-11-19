@@ -5,6 +5,10 @@
     reads) by Sheet ID, R001 to R148. Never type prices into a board.
   - The last good feed is kept on the TV, so a Wi-Fi drop never blanks
     the screen. Refreshes every 2 minutes.
+  - Add / remove (tablet): RS.removed holds the IDs George took off the
+    menu (the feed's "removed" list), so a board hides them on purpose.
+    An ID that is only missing from the feed keeps its fallback price.
+    RS.items is every item in the feed, so a board can show new ones.
   - Scales the 1920x1080 stage to any screen, drifts a few pixels every
     10 minutes (burn-in), reloads at 4 am to pick up changes.
 */
@@ -42,6 +46,8 @@
   const RS = window.RS = {
     prices: Object.assign({}, FALLBACK),
     settings: { soup: "", banner: "", soupList: [] },
+    removed: {},
+    items: [],
     TZ: TZ
   };
 
@@ -53,7 +59,8 @@
   RS.money = function (str) {
     return RS.esc(str).replace(/\$?(\d+)\.(\d{2})/g, (m, d, c) => c === "00" ? d : d + "<sup>" + c + "</sup>");
   };
-  RS.price = function (id) { return RS.prices[id] || ""; };
+  RS.price = function (id) { return RS.removed[id] ? "" : (RS.prices[id] || ""); };
+  RS.isRemoved = function (id) { return !!RS.removed[id]; };
   RS.p = function (id) { return RS.money(RS.price(id)); };
 
   /** Pull one size out of a multi-size price: RS.size("R028", "Large"). */
@@ -105,7 +112,11 @@
     if (!feed || !Array.isArray(feed.items)) return false;
     const next = Object.assign({}, FALLBACK);
     feed.items.forEach(it => { if (it && it.id && it.price) next[it.id] = String(it.price).trim(); });
+    const removed = {};
+    (Array.isArray(feed.removed) ? feed.removed : []).forEach(id => { if (id) removed[id] = true; });
     RS.prices = next;
+    RS.removed = removed;
+    RS.items = feed.items.filter(it => it && it.id);
     RS.settings = Object.assign({ soup: "", banner: "", soupList: [] }, feed.settings || {});
     return true;
   }
