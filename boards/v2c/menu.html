@@ -965,7 +965,8 @@
    * The still stays visible until the clip is truly playing ("playing"
    * plus a first frame), and comes back if the clip errors, never
    * starts within 8 seconds, or stalls for 3 seconds. A clip that failed
-   * is left alone for 10 minutes, then tried again.
+   * is left alone for 3 minutes, then tried again. A start the browser
+   * refuses is retried, and never benches the clip.
    */
   const videoBad = {};          // file -> time it last failed
   let liveVideo = null;
@@ -979,7 +980,7 @@
   function startVideo(p, el) {
     stopVideo();
     if (!p.video || STILL || VIDEO_OFF) return;
-    if (videoBad[p.video] && Date.now() - videoBad[p.video] < 10 * 60 * 1000) return;
+    if (videoBad[p.video] && Date.now() - videoBad[p.video] < 3 * 60 * 1000) return;
     const box = el.querySelector(".clip");
     if (!box) return;
     const v = document.createElement("video");
@@ -988,7 +989,9 @@
     v.disablePictureInPicture = true;
     const fail = why => {
       if (liveVideo !== v) return;
-      videoBad[p.video] = Date.now();
+      // A refused start ("blocked") is not the file's fault: try again next
+      // time round. Only a real error or stall benches the clip, briefly.
+      if (why !== "blocked") videoBad[p.video] = Date.now();
       videoNote = p.video + " " + why;
       stopVideo(); diag();
     };
@@ -1005,8 +1008,12 @@
     watch(8000, "did not start");
     v.src = VIDEO_DIR + p.video;
     box.appendChild(v);
-    const playing = v.play();
-    if (playing && playing.catch) playing.catch(() => fail("blocked"));
+    // If the start is refused, try once more a moment later before giving up.
+    const tryPlay = again => {
+      const pr = v.play();
+      if (pr && pr.catch) pr.catch(() => { if (liveVideo !== v) return; if (again) setTimeout(() => tryPlay(false), 700); else fail("blocked"); });
+    };
+    tryPlay(true);
   }
   let videoNote = "";
 
