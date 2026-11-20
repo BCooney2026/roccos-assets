@@ -55,9 +55,10 @@
     return String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   };
 
-  /** "$16.95" -> 16<sup>95</sup> ; "$19.00" -> 19 (works inside longer text). */
+  /** "$16.95" -> 16<sup>95</sup> ; "$19.00" -> 19<sup>00</sup> (Brian, Nov 20:
+   *  always show the cents). Works inside longer text. */
   RS.money = function (str) {
-    return RS.esc(str).replace(/\$?(\d+)\.(\d{2})/g, (m, d, c) => c === "00" ? d : d + "<sup>" + c + "</sup>");
+    return RS.esc(str).replace(/\$?(\d+)\.(\d{2})/g, (m, d, c) => d + "<sup>" + c + "</sup>");
   };
   RS.price = function (id) { return RS.removed[id] ? "" : (RS.prices[id] || ""); };
   RS.isRemoved = function (id) { return !!RS.removed[id]; };

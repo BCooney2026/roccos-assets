@@ -116,7 +116,9 @@
   .row + .row { border-top: 1px solid var(--hair); }
   .row .n { font-weight: 600; font-size: calc(30px * var(--fs)); line-height: 1.06; overflow-wrap: break-word; }
   .row .n .star { color: var(--tomato); font-size: .7em; margin-right: 6px; position: relative; top: -.14em; }
-  .row .price { font-size: calc(31px * var(--fs)); text-align: right; color: var(--price); }
+  /* Two-line names: the price sits on the LAST line, next to the end of the
+     name (Bob's call, Nov 20). "end" is the fallback for old WebViews. */
+  .row .price { font-size: calc(31px * var(--fs)); text-align: right; color: var(--price); align-self: end; align-self: last baseline; }
   .row .d { grid-column: 1 / -1; font-weight: 500; font-size: calc(20px * var(--fs)); line-height: 1.12; color: var(--ivory-3); margin-top: 1px; }
   .row.sub .n { font-weight: 500; color: #efe4d4; padding-left: 18px; }
   .row.note .n, .row.note .price { font-size: calc(20px * var(--fs)); font-weight: 500; color: var(--ivory-3); }
@@ -333,7 +335,7 @@
   <div class="menu" id="menu"></div>
   <div class="show" id="show"></div>
 </div>
-<script src="../signage.js?v=3"></script>
+<script src="../signage.js?v=4"></script>
 <script>
 (function () {
   "use strict";
