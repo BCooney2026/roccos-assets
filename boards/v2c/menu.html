@@ -282,6 +282,11 @@
   .today .phone { margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--rule); display: flex; justify-content: space-between; align-items: baseline;
     font-family: "Oswald", sans-serif; letter-spacing: .18em; text-transform: uppercase; font-size: 15px; color: var(--ivory-3); }
   .today .phone:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  /* Key for the red stars in the menu: George's best items. */
+  .today .favkey { margin-top: 10px; font-family: "Oswald", sans-serif; font-weight: 500; font-size: 17px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--gold); }
+  .eyebrow .favstar { color: var(--tomato); font-weight: 400; letter-spacing: 0; margin-right: 2px; }
+  .today .favkey span { color: var(--tomato); letter-spacing: 0; margin-right: 4px; }
   .today .phone b { font-family: "Barlow SC", sans-serif; letter-spacing: .01em; font-size: 30px; color: var(--ivory); font-weight: 700; }
 
 
@@ -409,7 +414,7 @@
       title: "Large Plain Pizza", desc: "Every Monday", img: "pizza-cheese.webp", priceId: "R001", art: { w: 430 } },
     { id: "tue-spaghetti", tv: 1, type: "daily", days: [2], priority: 10, badge: "Today Only", eyebrow: "Tuesday Special",
       title: "Spaghetti & Meatballs", desc: "With salad & garlic bread", priceId: "R003" },
-    { id: "jersey-shore", tv: 1, type: "signature", eyebrow: "Rocco’s Famous", title: "Jersey Shore",
+    { id: "jersey-shore", tv: 1, type: "signature", fav: true, eyebrow: "Rocco’s Famous", title: "Jersey Shore",
       desc: "Sweet sauce & white cheddar on a thin crust", img: "pizza-jersey-shore.webp", priceId: "R018", art: { w: 430 } },
     { id: "neapolitan", tv: 1, type: "signature", days: [2, 3, 4, 5, 6, 7], eyebrow: "The Original", title: "Neapolitan",
       desc: "Round, thin crust", img: "pizza-cheese.webp", priceId: "R009", label: "Large", art: { w: 430 } },
@@ -442,13 +447,13 @@
       desc: "Chopped steak piled high on a long roll", photo: "cheesesteak-ai.jpg", focus: "50% 55%", priceId: "R043" },   // AI image (ChatGPT, Nov 20, Brian's request): matches the chicken one. Shares the steaks spot with Chicken Cheesesteak.
     { id: "chicken-cheesesteak", tv: 2, type: "signature", slot: "steaks", days: [1, 3, 4, 5, 6, 7], eyebrow: "Steaks & Subs", title: "Chicken Cheesesteak",
       desc: "Thin sliced grilled chicken smothered in melted cheese", photo: "chicken-cheesesteak-ai.jpg", focus: "50% 55%", priceId: "R061" },   // AI image (ChatGPT, Nov 20) modeled on George's own chicken cheesesteak shot. Shares the steaks spot with Cheesesteak.
-    { id: "chef-salad", tv: 2, type: "signature", slot: "salads", eyebrow: "Salads", title: "Chef Salad",
+    { id: "chef-salad", tv: 2, type: "signature", fav: true, slot: "salads", eyebrow: "Salads", title: "Chef Salad",
       desc: "Ham & cheese rolled into pinwheels", photo: "chef-salad-photo.jpg", focus: "50% 40%", priceId: "R093" },   // George's own Slice shoot (antipasto bowl, cropped to the pinwheels, no pepperoni). Replaced Chicken Caesar Hoagie.
-    { id: "greek-salad", tv: 2, type: "signature", slot: "salads", eyebrow: "Salads", title: "Greek Salad",
+    { id: "greek-salad", tv: 2, type: "signature", fav: true, slot: "salads", eyebrow: "Salads", title: "Greek Salad",
       desc: "With grilled chicken or shrimp", photo: "greek-salad-photo.jpg", focus: "50% 40%", priceId: "R096" },   // Unsplash photo-1670237735381. Shares the salads spot with Chef Salad.
     { id: "wings", tv: 2, type: "signature", eyebrow: "Appetizers", title: "Wings",
       photo: "wings-photo.jpg", focus: "50% 50%", priceId: "R088" },   // Unsplash photo-1567620832903. Replaced Eggplant Parm (Brian, Nov 20).
-    { id: "turkey-club", tv: 2, type: "signature", eyebrow: "Hoagies", title: "Turkey Club",
+    { id: "turkey-club", tv: 2, type: "signature", fav: true, eyebrow: "Hoagies", title: "Turkey Club",
       desc: "Piled high with Boar’s Head turkey", photo: "turkey-club-photo.jpg", focus: "50% 45%",
       logo: "boars-head-pf-white.png", priceId: "R073" },   // Unsplash photo-1628191010210 (replaced Cheeseburger; the burger has its own video)
     { id: "stromboli", tv: 2, type: "signature", days: [1, 2, 4, 5, 6, 7], eyebrow: "Strombolis", title: "Stromboli",
@@ -971,7 +976,8 @@
     const desc = spot ? "" : (p.desc || "");
     const priced = !!p.priceId && !spot && !medalOnly;
     el.innerHTML = '<div class="art">' + art + '</div><div class="copy">' +
-      '<div class="eyebrow">' + (p.badge && !medalOnly && !spot ? '<span class="badge">' + esc(p.badge) + '</span>' : '') + '<span>' + esc(p.eyebrow || "") + '</span></div>' +
+      '<div class="eyebrow">' + (p.badge && !medalOnly && !spot ? '<span class="badge">' + esc(p.badge) + '</span>' : '') +
+        (p.fav && !spot ? '<span><b class="favstar">&#9733;</b> Rocco’s Favorite</span>' : '<span>' + esc(p.eyebrow || "") + '</span>') + '</div>' +
       (title ? '<div class="title">' + esc(title) + '</div>' : '') +
       (desc ? '<div class="desc">' + esc(desc) + '</div>' : '') +
       (priced ? '<div class="pricebar"><i></i><span class="price"></span>' + (p.label ? '<small>' + esc(p.label) + '</small>' : '') + '</div>' : '') +
@@ -1144,7 +1150,8 @@
       else if (RS.price("R017")) main = line("Gluten Free", "10″ Gluten Free Pizza", "R017", "All pasta dishes available gluten free");
     }
     const banner = tv === 2 && RS.settings.banner ? '<div class="s banner">' + esc(RS.settings.banner) + '</div>' : "";
-    return main + banner + '<div class="phone">Pickup &amp; Delivery<b>610-935-2202</b></div>';
+    return main + banner + '<div class="phone">Pickup &amp; Delivery<b>610-935-2202</b></div>' +
+      '<div class="favkey"><span>&#9733;</span> Rocco’s Favorites</div>';
   }
   function drawToday() { document.getElementById("today").innerHTML = todayCard(); }
 
