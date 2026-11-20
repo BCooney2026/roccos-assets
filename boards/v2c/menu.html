@@ -418,22 +418,34 @@
       video: "pizza-cutter.mp4", poster: "pizza-cutter.jpg", loop: false, focus: "50% 50%" },       // Pexels 6092567
     { id: "cheese-spread", tv: 1, type: "brand", footage: "stock", seconds: 9, eyebrow: "Made to Order", brandTitle: "Rocco’s Pizza",
       video: "cheese-spread.mp4", poster: "cheese-spread.jpg", loop: false, focus: "50% 45%" },     // Pexels 16074388
-    // ----- TV 2 -----
+    // ----- TV 2: 10 scenes, 5 of George's items and 5 videos -----
+    // The daily specials swap in for one item on their day, so it stays 10.
     { id: "tue-cheesesteak", tv: 2, type: "daily", days: [2], priority: 10, badge: "Today Only", eyebrow: "Tuesday Special",
       title: "Cheesesteak", desc: "Tuesday only", priceId: "R002" },
     { id: "wed-antipasto", tv: 2, type: "daily", days: [3], priority: 10, badge: "Today Only", eyebrow: "Wednesday Special",
-      title: "Antipasto", desc: "With garlic bread", img: "antipasto.webp", priceId: "R004", art: { w: 470 } },
-    { id: "chicken-cheesesteak", tv: 2, type: "signature", eyebrow: "Steaks & Subs", title: "Chicken Cheesesteak",
-      desc: "Thin sliced grilled chicken smothered in melted cheese", img: "chicken-cheesesteak.webp", priceId: "R061", art: { w: 400, y: 14 } },
+      title: "Antipasto", desc: "With garlic bread", img: "antipasto.webp", priceId: "R004", art: { w: 420 } },
+    { id: "chicken-cheesesteak", tv: 2, type: "signature", days: [1, 3, 4, 5, 6, 7], eyebrow: "Steaks & Subs", title: "Chicken Cheesesteak",
+      desc: "Thin sliced grilled chicken smothered in melted cheese", img: "chicken-cheesesteak.webp", priceId: "R061", art: { w: 400 } },
     { id: "caesar-hoagie", tv: 2, type: "signature", eyebrow: "Hoagies", title: "Chicken Caesar Hoagie",
-      desc: "Chicken, crisp romaine & creamy Caesar on a long roll", img: "chicken-caesar-hoagie.webp", priceId: "R067", art: { w: 430, rot: -12 } },
+      desc: "Chicken, crisp romaine & creamy Caesar on a long roll", img: "chicken-caesar-hoagie.webp", priceId: "R067", art: { w: 440, rot: -10 } },
     { id: "eggplant-parm", tv: 2, type: "signature", eyebrow: "Hot Subs", title: "Eggplant Parm",
-      desc: "Homemade breaded eggplant, red sauce & melted cheese", img: "eggplant-parm-sub.webp", priceId: "R050", art: { w: 490 } },
-    { id: "stromboli", tv: 2, type: "signature", eyebrow: "Strombolis", title: "Stromboli",
-      desc: "Baked golden, in three sizes", img: "stromboli.webp", priceId: "R033", size: "S", label: "Small", art: { w: 430, rot: -10 } },
-    { id: "antipasto", tv: 2, type: "signature", eyebrow: "Salads", title: "Antipasto",
-      img: "antipasto.webp", priceId: "R089", art: { w: 470 } },
-    { id: "boars-head", tv: 2, type: "brand", eyebrow: "On Our Hoagies", brandImg: "boars-head-pf-white.png", seconds: 8 }
+      desc: "Homemade breaded eggplant, red sauce & melted cheese", img: "eggplant-parm-sub.webp", priceId: "R050", art: { w: 440 } },
+    { id: "cheeseburger", tv: 2, type: "signature", eyebrow: "Burgers", title: "Cheeseburger",
+      img: "cheeseburger.webp", priceId: "R103", art: { w: 430 } },
+    { id: "stromboli", tv: 2, type: "signature", days: [1, 2, 4, 5, 6, 7], eyebrow: "Strombolis", title: "Stromboli",
+      desc: "Baked golden, in three sizes", img: "stromboli.webp", priceId: "R033", size: "S", label: "Small", art: { w: 440, rot: -8 } },
+    // Videos: stock footage, so unpriced brand spots (no item name, no price).
+    // 720 wide, 9 s, play once then hold the still.
+    { id: "deli-sub", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Hoagies", brandTitle: "Stacked High",
+      video: "deli-sub.mp4", poster: "deli-sub.jpg", loop: false, focus: "50% 50%" },                 // Pexels 12201209 (Brian)
+    { id: "burger-grill", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Burgers", brandTitle: "Fresh Off the Grill",
+      video: "burger-grill.mp4", poster: "burger-grill.jpg", loop: false, focus: "50% 70%" },         // Pexels 34697259
+    { id: "steak-sandwich", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Hot Sandwiches", brandTitle: "Piled On",
+      video: "steak-sandwich.mp4", poster: "steak-sandwich.jpg", loop: false, focus: "50% 50%" },     // Pexels 5920247 (Brian)
+    { id: "fries", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Sides", brandTitle: "Golden & Crispy",
+      video: "fries.mp4", poster: "fries.jpg", loop: false, focus: "50% 50%" },                       // Pexels 39195447
+    { id: "crispy-chicken", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Chicken Sandwiches", brandTitle: "Crispy & Golden",
+      video: "crispy-chicken.mp4", poster: "crispy-chicken.jpg", loop: false, focus: "50% 55%" }      // Pexels 20416794 (Brian)
   ];
   // Always available, needs nothing from the network but the logo.
   const BRAND_CARD = { id: "roccos", type: "brand", eyebrow: "Pickup & Delivery", title: "610-935-2202", wordmark: true };
