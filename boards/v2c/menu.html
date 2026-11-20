@@ -820,8 +820,9 @@
   }
   /** Promos that may show right now, highest priority first. */
   function eligible() {
+    let list;
     const day = weekday(), hour = shopHour(), today = RS.today();
-    const list = PROMOS.filter(p => {
+    list = PROMOS.filter(p => {
       if (p.enabled === false) return false;
       if (p.tv && p.tv !== tv) return false;
       if (p.days && p.days.indexOf(day) < 0) return false;
@@ -841,6 +842,17 @@
     list.sort((a, b) => (b.priority || 0) - (a.priority || 0));
     const pinned = PIN && list.filter(p => p.id === PIN);
     if (pinned && pinned.length) return pinned;
+    // Specials (priority) go first; after that, photo promos and video
+    // spots take turns so the videos are spread through the rotation.
+    const top = list.filter(p => (p.priority || 0) > 0);
+    const photos = list.filter(p => !(p.priority > 0) && !p.video);
+    const clips = list.filter(p => !(p.priority > 0) && p.video);
+    const mixed = [];
+    while (photos.length || clips.length) {
+      if (photos.length) mixed.push(photos.shift());
+      if (clips.length) mixed.push(clips.shift());
+    }
+    list = top.concat(mixed);
     return list.length ? list : [BRAND_CARD];
   }
   const secondsOf = p => Math.max(4, Number(p.seconds) || PROMO_SECONDS);
@@ -1072,6 +1084,34 @@
   });
   // Start at once: the wordmark card needs nothing from the network, and
   // the first food promo snaps in the moment its photo has loaded.
+  /*
+   * VIDEO LIST. Clips added through the GitHub inbox are listed in
+   * video/videos.json (see .github/scripts/process_tv_videos.py). Read it
+   * at start and every 10 minutes; keep the last good copy on the TV so
+   * a network drop never empties the rotation.
+   */
+  const VIDEO_LIST_KEY = "roccos_tv_videos_v1";
+  function useVideoList(list) {
+    for (let i = PROMOS.length - 1; i >= 0; i--) if (PROMOS[i].fromList) PROMOS.splice(i, 1);
+    (Array.isArray(list) ? list : []).forEach(v => {
+      if (!v || !v.id || !v.video || !v.poster || (v.tv !== 1 && v.tv !== 2)) return;
+      PROMOS.push({ id: v.id, tv: v.tv, type: "brand", footage: "stock", fromList: true,
+        eyebrow: v.eyebrow || "", brandTitle: v.title || "Rocco\u2019s Pizza",
+        video: v.video, poster: v.poster, loop: false, seconds: Number(v.seconds) || 9, focus: "50% 50%" });
+      if (v.tv === tv) preload(v.poster, VIDEO_DIR);
+    });
+  }
+  function loadVideoList() {
+    const bucket = Math.floor(Date.now() / 600000);
+    return fetch(VIDEO_DIR + "videos.json?v=" + bucket, { cache: "no-store" })
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(list => { try { localStorage.setItem(VIDEO_LIST_KEY, JSON.stringify(list)); } catch (e) {} useVideoList(list); })
+      .catch(() => { try { useVideoList(JSON.parse(localStorage.getItem(VIDEO_LIST_KEY) || "[]")); } catch (e) {} });
+  }
+  try { useVideoList(JSON.parse(localStorage.getItem(VIDEO_LIST_KEY) || "[]")); } catch (e) {}
+  loadVideoList();
+  setInterval(loadVideoList, 10 * 60 * 1000);
+
   bootAt = Date.now(); started = true;
   if (pendingPhotos === 0) photosSettled = true;
   showPromo(true);

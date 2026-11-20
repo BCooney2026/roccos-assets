@@ -1,0 +1,50 @@
+# Rocco's TV boards: turns clips dropped in boards/v2c/video/inbox into
+# TV-ready videos and updates boards/v2c/video/videos.json.
+# How to use it: see .github/scripts/process_tv_videos.py
+name: TV videos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "boards/v2c/video/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pages: write
+
+concurrency:
+  group: tv-videos
+  cancel-in-progress: false
+
+jobs:
+  process:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
+      - name: Process the inbox
+        run: python3 .github/scripts/process_tv_videos.py
+
+      - name: Save the results
+        run: |
+          git config user.name "BCooney2026"
+          git config user.email "BCooney2026@users.noreply.github.com"
+          git add -A boards/v2c/video
+          if git diff --cached --quiet; then echo "Nothing to save"; exit 0; fi
+          git commit -m "TV videos: processed inbox"
+          git pull --rebase --autostash origin main
+          git push origin HEAD:main
+
+      # Commits made by this workflow may not start a Pages build on their
+      # own, so ask for one. Harmless if Pages already rebuilt.
+      - name: Refresh the website
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh api -X POST "repos/${{ github.repository }}/pages/builds"
