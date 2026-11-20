@@ -1271,6 +1271,32 @@
     showTimer = setTimeout(scheduleShow, Math.max(500, (SHOW_EVERY - into) * 1000 + 50));
   }
 
+
+  /*
+   * SELF-UPDATE. Fully Kiosk keeps this page open for days, so it never sees
+   * a new version on its own. Every 2 minutes, fetch this page fresh (no
+   * cache) and compare it with the copy we started from; if it changed,
+   * reload with a cache-busting stamp. Same URL and ?tv=, nothing to touch
+   * on the stick. Skipped mid-reel so a reload never cuts a video off.
+   */
+  (function selfUpdate() {
+    const here = location.pathname;
+    let base = null;
+    const grab = () => fetch(here + "?nc=" + Date.now(), { cache: "no-store" }).then(r => r.ok ? r.text() : null).catch(() => null);
+    grab().then(t => { base = t; });
+    setInterval(() => {
+      grab().then(t => {
+        if (!t || !base) { if (t && !base) base = t; return; }
+        if (t === base) return;
+        const showing = document.getElementById("show");
+        if (showing && showing.classList.contains("on")) return;      // after the reel
+        const q = new URLSearchParams(location.search);
+        q.set("rv", String(Date.now()));
+        location.replace(here + "?" + q.toString());
+      });
+    }, 2 * 60 * 1000);
+  })();
+
   bootAt = Date.now(); started = true;
   if (pendingPhotos === 0) photosSettled = true;
   showPromo(true);

@@ -13,7 +13,9 @@
 -->
 <script>
   var TARGET = "v2c/menu.html";
-  location.replace(TARGET + location.search + location.hash);
+  // Fresh stamp so the stick never reuses a stale copy of the board.
+  var q = location.search ? location.search + "&" : "?";
+  location.replace(TARGET + q + "rv=" + Date.now() + location.hash);
 </script>
 <style>html,body{margin:0;background:#121110;}</style>
 </head>
