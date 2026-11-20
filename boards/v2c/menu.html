@@ -259,6 +259,42 @@
   .today .phone:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
   .today .phone b { font-family: "Barlow SC", sans-serif; letter-spacing: .01em; font-size: 30px; color: var(--ivory); font-weight: 700; }
 
+
+  /* =====================================================================
+     SHOWTIME: a full-screen video takeover. Every few minutes one 9 s
+     reel (1920x1080, cut and graded offline from 4K sources) fills the
+     whole TV, then the menu comes straight back. The two TVs take turns
+     so one menu is always readable. The layer only appears once the
+     reel is really playing; if it cannot play, nothing changes.
+     ===================================================================== */
+  .show { position: absolute; inset: 0; z-index: 50; background: #0b0908; opacity: 0; pointer-events: none;
+    transition: opacity .7s ease; }
+  .show.on { opacity: 1; }
+  .show video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .show .shade { position: absolute; inset: 0;
+    background: linear-gradient(0deg, rgba(10, 8, 7, .92) 0%, rgba(10, 8, 7, .55) 26%, transparent 48%),
+                linear-gradient(180deg, rgba(10, 8, 7, .55) 0%, transparent 18%); }
+  .show .logo { position: absolute; left: 44px; top: 26px; width: 230px; height: auto; filter: drop-shadow(0 8px 22px rgba(0, 0, 0, .7)); }
+  .show .words { position: absolute; left: 96px; right: 96px; bottom: 82px; display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; }
+  .show .eyebrow { font-size: 24px; letter-spacing: .42em; }
+  .show .eyebrow::after { max-width: 200px; }
+  .show .big { font-family: "Playfair Display", Georgia, serif; font-weight: 900; font-style: italic; font-size: 150px; line-height: .92;
+    letter-spacing: -.015em; color: var(--ivory); margin-top: 14px; text-shadow: 0 10px 50px rgba(0, 0, 0, .7); white-space: nowrap; }
+  .show .line { width: 120px; height: 5px; background: var(--tomato); margin-top: 26px; transform-origin: left center; }
+  .show .call { text-align: right; font-family: "Oswald", sans-serif; text-transform: uppercase; letter-spacing: .24em; font-size: 20px; color: var(--gold); flex: none; }
+  .show .call b { display: block; font-family: "Barlow SC", sans-serif; letter-spacing: .01em; font-size: 54px; color: var(--ivory); font-weight: 700; margin-top: 4px; }
+  /* Split layout: a single tall clip on the left, the words on the right. */
+  .show.split .shade { background: linear-gradient(90deg, transparent 0%, transparent 34%, rgba(15, 13, 11, .0) 39.6%, #0f0d0b 40%); }
+  .show.split .words { left: 860px; right: 90px; top: 0; bottom: 0; flex-direction: column; align-items: flex-start; justify-content: center; gap: 70px; }
+  .show.split .big { font-size: 128px; white-space: normal; }
+  .show.split .call { text-align: left; }
+  .show.split .logo { left: auto; right: 70px; }
+  .show.on .eyebrow, .show.on .big { animation: rise 1s var(--ease) .25s both; }
+  .show.on .line { animation: draw .8s var(--ease) .8s both; }
+  .show.on .call { animation: rise 1s var(--ease) .45s both; }
+  .show.on video { animation: settle 9s linear both; }
+  @keyframes settle { from { transform: scale(1.045); } to { transform: scale(1); } }
+
   /* Still mode (&motion=0 or the device asks for reduced motion) */
   .stage.still .slide.on, .stage.still .slide.on * { animation: none !important; }
   .stage.still .slide.out { transition: none; }
@@ -277,6 +313,7 @@
     <div class="today" id="today"></div>
   </div>
   <div class="menu" id="menu"></div>
+  <div class="show" id="show"></div>
 </div>
 <script src="../signage.js?v=3"></script>
 <script>
@@ -1112,9 +1149,93 @@
   loadVideoList();
   setInterval(loadVideoList, 10 * 60 * 1000);
 
+
+  /*
+   * SHOWTIME. Full-screen reels, in boards/v2c/video. Stock footage, so
+   * every reel is an unpriced brand spot: no item names, no prices.
+   *   file      the reel (9 s, 1920x1080, made from 4K sources)
+   *   layout    "full" (words over the bottom) or "split" (clip left,
+   *             words right, for a single tall clip)
+   * Clock-synced: every SHOW_EVERY seconds one reel plays, the next reel
+   * in the list each time. TV 2 runs half a cycle after TV 1.
+   *   &show=0 turns it off, &show=ID loops one reel (preview),
+   *   &showevery=N shortens the cycle (preview).
+   */
+  const SHOWS = [
+    // Pexels 13111090, 6092567, 6091109
+    { id: "show-pizza", tv: 1, eyebrow: "Phoenixville", title: "Pizza Night." },
+    // Pexels 18105251 (Kuiyibo Campos), 14537812, 8107806
+    { id: "show-dinners", tv: 1, eyebrow: "Italian Dinners", title: "Mangia." },
+    // Pexels 16074388, 12118474, 6089921
+    { id: "show-pizzeria", tv: 1, eyebrow: "Rocco’s Pizza", title: "Hot & Fresh." },
+    // Pexels 12201209 (LayG Traveller)
+    { id: "show-hoagie", tv: 2, eyebrow: "Hoagies", title: "Stacked High." },
+    // Pexels 5920247 (Kampus Production)
+    { id: "show-grill", tv: 2, eyebrow: "Hot Sandwiches", title: "Off the Grill." },
+    // Pexels 20416794 (Agustina Tolosa)
+    { id: "show-chicken", tv: 2, eyebrow: "Chicken Sandwiches", title: "Crispy & Golden.", layout: "split" }
+  ];
+  const SHOW_SECONDS = 9;
+  const SHOW_EVERY = Math.max(20, Number(params.get("showevery")) || 150);
+  const SHOW_PARAM = params.get("show") || "";
+  const SHOW_OFF = SHOW_PARAM === "0" || STILL || VIDEO_OFF;
+  const showEl = document.getElementById("show");
+  let showTimer = null, showVideo = null, showEnd = null;
+  function showList() {
+    const mine = SHOWS.filter(s => s.tv === tv);
+    const pin = SHOW_PARAM && SHOWS.filter(s => s.id === SHOW_PARAM);
+    return pin && pin.length ? pin : mine;
+  }
+  function endShow() {
+    clearTimeout(showEnd);
+    showEl.classList.remove("on");
+    const v = showVideo; showVideo = null;
+    if (v) setTimeout(() => { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} }, 800);
+    setTimeout(() => { if (!showVideo) showEl.innerHTML = ""; }, 800);
+  }
+  function playShow(s) {
+    endShow();
+    showEl.className = "show" + (s.layout === "split" ? " split" : "");
+    showEl.innerHTML = '<video muted playsinline preload="auto"></video><div class="shade"></div>' +
+      '<img class="logo" alt="" src="' + LOGO + '" onerror="this.remove()">' +
+      '<div class="words"><div><div class="eyebrow"><span>' + esc(s.eyebrow) + '</span></div>' +
+      '<div class="big">' + esc(s.title) + '</div><div class="line"></div></div>' +
+      '<div class="call">Pickup &amp; Delivery<b>610-935-2202</b></div></div>';
+    const v = showEl.querySelector("video");
+    v.muted = true; v.defaultMuted = true; v.playsInline = true; v.disablePictureInPicture = true;
+    showVideo = v;
+    let shown = false;
+    const give = setTimeout(() => { if (!shown && showVideo === v) endShow(); }, 4000);   // never started
+    v.addEventListener("timeupdate", () => {
+      if (shown || showVideo !== v || v.currentTime < 0.05) return;
+      shown = true; clearTimeout(give);
+      stopVideo();                              // one video at a time on the stick
+      showEl.classList.add("on");
+      showEnd = setTimeout(endShow, Math.max(1000, (SHOW_SECONDS - 0.7) * 1000));
+    });
+    v.addEventListener("ended", () => { if (showVideo === v) endShow(); });
+    v.addEventListener("error", () => { if (showVideo === v) endShow(); });
+    v.src = VIDEO_DIR + s.id + ".mp4";
+    const pr = v.play(); if (pr && pr.catch) pr.catch(() => { if (showVideo === v) endShow(); });
+  }
+  function scheduleShow() {
+    clearTimeout(showTimer);
+    const list = showList();
+    if (SHOW_OFF || !list.length) return;
+    if (SHOW_PARAM && SHOW_PARAM !== "0") {           // preview: loop one reel
+      playShow(list[0]); showTimer = setTimeout(scheduleShow, (SHOW_SECONDS + 3) * 1000); return;
+    }
+    const t = Date.now() / 1000 + (tv === 2 ? SHOW_EVERY / 2 : 0);
+    const slot = Math.floor(t / SHOW_EVERY), into = t - slot * SHOW_EVERY;
+    // Never in the first minute after power-on: the menu shows first.
+    if (into < 1 && Date.now() - bootAt > 60000) playShow(list[slot % list.length]);
+    showTimer = setTimeout(scheduleShow, Math.max(500, (SHOW_EVERY - into) * 1000 + 50));
+  }
+
   bootAt = Date.now(); started = true;
   if (pendingPhotos === 0) photosSettled = true;
   showPromo(true);
+  scheduleShow();
   setTimeout(settlePhotos, 1500);      // slow connection: go with what has loaded
   // Fonts are only fetched when first used, so ask for them up front and
   // measure everything again when they (and the page) are in.
