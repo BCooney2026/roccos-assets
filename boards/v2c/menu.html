@@ -242,7 +242,12 @@
   .clip { position: absolute; left: 0; right: 0; top: -108px; bottom: 0; overflow: hidden; background: #0f0d0b; }
   .clip img, .clip video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: var(--focus, 50% 50%); display: block; }
   .clip video { opacity: 0; transition: opacity .7s ease; }
-  .slide.on .clip.photo img { animation: pushin 11s linear both; transform-origin: 50% 45%; }
+  .slide.on .clip.photo > img:first-child { animation: pushin 11s linear both; transform-origin: 50% 45%; }
+  /* A brand logo on a photo scene (e.g. Proudly Featuring Boar's Head):
+     sits low on the photo and drops in just before the name. */
+  .clip .clip-logo { position: absolute; left: 34px; bottom: 26px; width: 270px; height: auto; z-index: 2;
+    filter: drop-shadow(0 6px 18px rgba(0, 0, 0, .8)); }
+  .slide.on .clip .clip-logo { animation: drop .7s var(--ease) .9s both; }
   @keyframes pushin { from { transform: scale(1.0); } to { transform: scale(1.09); } }
   .clip video.live { opacity: 1; }
   .clip::after { content: ""; position: absolute; inset: 0; pointer-events: none;
@@ -432,8 +437,9 @@
       desc: "Chicken, crisp romaine & creamy Caesar on a long roll", img: "chicken-caesar-hoagie.webp", priceId: "R067", art: { w: 440, rot: -10 } },
     { id: "eggplant-parm", tv: 2, type: "signature", eyebrow: "Hot Subs", title: "Eggplant Parm",
       desc: "Homemade breaded eggplant, red sauce & melted cheese", img: "eggplant-parm-sub.webp", priceId: "R050", art: { w: 440 } },
-    { id: "cheeseburger", tv: 2, type: "signature", eyebrow: "Burgers", title: "Cheeseburger",
-      img: "cheeseburger.webp", priceId: "R103", art: { w: 430 } },
+    { id: "turkey-club", tv: 2, type: "signature", eyebrow: "Hoagies", title: "Turkey Club",
+      desc: "Piled high with Boar’s Head turkey", photo: "turkey-club-photo.jpg", focus: "50% 45%",
+      logo: "boars-head-pf-white.png", priceId: "R073" },   // Unsplash photo-1628191010210 (replaced Cheeseburger; the burger has its own video)
     { id: "stromboli", tv: 2, type: "signature", days: [1, 2, 4, 5, 6, 7], eyebrow: "Strombolis", title: "Stromboli",
       desc: "Baked golden, in three sizes", photo: "stromboli-photo.jpg", focus: "50% 40%", priceId: "R033", size: "S", label: "Small" },   // Unsplash photo-1628824851008
     // Videos: stock footage, so unpriced brand spots (no item name, no price).
@@ -926,7 +932,8 @@
     } else if (p.photo) {
       // A full-bleed photo (not a cutout), framed like the video spots, with a
       // slow push-in. For dishes whose cutout sells them short.
-      art = '<div class="clip photo" style="--focus:' + esc(p.focus || "50% 50%") + '"><img src="' + IMG + p.photo + '" alt=""></div>';
+      art = '<div class="clip photo" style="--focus:' + esc(p.focus || "50% 50%") + '"><img src="' + IMG + p.photo + '" alt="">' +
+        (p.logo ? '<img class="clip-logo" src="' + IMG + p.logo + '" alt="" onerror="this.remove()">' : '') + '</div>';
     } else if (p.img) {
       const src = IMG + p.img;
       art = '<div class="plate" style="width:' + (a.w || 460) + 'px;margin-left:' + (a.x || 0) + 'px;margin-top:' + (a.y || 0) + 'px;transform-origin:center">' +
