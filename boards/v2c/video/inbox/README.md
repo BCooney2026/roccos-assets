@@ -10,7 +10,7 @@
 
 **2. Drag it onto this page** (or click **Add file > Upload files**), then press **Commit changes**.
 
-**3. Wait about 3 minutes.** It gets cropped for the TV, gets a still picture, and joins that TV's rotation. Your upload disappears from this folder when it's done.
+**3. That's it.** In about a minute it's cropped for the TV and gets a still picture, and your upload disappears from this folder. The TVs check for new videos every 10 minutes, so it shows up within about 10 minutes.
 
 ## Good to know
 
