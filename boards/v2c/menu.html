@@ -1206,7 +1206,7 @@
   const SHOW_PARAM = params.get("show") || "";
   const SHOW_OFF = SHOW_PARAM === "0" || STILL || VIDEO_OFF;
   const showEl = document.getElementById("show");
-  let showTimer = null, showVideo = null, showEnd = null;
+  let showTimer = null, showVideo = null, showEnd = null, lastShowSlot = -1;
   function showList() {
     const mine = SHOWS.filter(s => s.tv === tv);
     const pin = SHOW_PARAM && SHOWS.filter(s => s.id === SHOW_PARAM);
@@ -1255,7 +1255,12 @@
     const t = Date.now() / 1000 + (tv === 2 ? SHOW_EVERY / 2 : 0);
     const slot = Math.floor(t / SHOW_EVERY), into = t - slot * SHOW_EVERY;
     // Never in the first minute after power-on: the menu shows first.
-    if (into < 1 && Date.now() - bootAt > 60000) playShow(list[slot % list.length]);
+    // A late timer (busy or throttled browser) still plays the slot's reel,
+    // as long as most of it is left; each slot plays at most once.
+    if (slot !== lastShowSlot && into < SHOW_SECONDS - 3 && Date.now() - bootAt > 60000) {
+      lastShowSlot = slot;
+      playShow(list[slot % list.length]);
+    }
     showTimer = setTimeout(scheduleShow, Math.max(500, (SHOW_EVERY - into) * 1000 + 50));
   }
 
