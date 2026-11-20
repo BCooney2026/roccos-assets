@@ -348,6 +348,10 @@
       title: "Spaghetti & Meatballs", desc: "With salad & garlic bread", priceId: "R003" },
     { id: "jersey-shore", tv: 1, type: "signature", eyebrow: "Rocco’s Famous", title: "Jersey Shore",
       desc: "Sweet sauce & white cheddar on a thin crust", img: "pizza-jersey-shore.webp", priceId: "R018", art: { w: 590, x: -34 } },
+    // Pexels 18105251, Kuiyibo Campos. Penne tossed through a pan fire.
+    { id: "pasta-flame", tv: 1, type: "brand", footage: "stock", seconds: 10,
+      eyebrow: "Italian Dinners", brandTitle: "Mangia!",
+      video: "pasta-flame.mp4", poster: "pasta-flame.jpg", loop: false, focus: "50% 25%" },
     { id: "neapolitan", tv: 1, type: "signature", eyebrow: "The Original", title: "Neapolitan",
       desc: "Round, thin crust", img: "pizza-cheese.webp", priceId: "R009", label: "Large", art: { w: 590, x: -34 } },
     { id: "ravioli", tv: 1, type: "signature", eyebrow: "Italian Dinners", title: "Cheese Ravioli",
@@ -362,6 +366,19 @@
     { id: "slice-lift", tv: 1, type: "brand", footage: "stock", priority: 5, seconds: 7,
       eyebrow: "Phoenixville", brandTitle: "Rocco’s Pizza",
       video: "slice-lift.mp4", poster: "slice-lift.jpg", loop: false, focus: "100% 50%" },
+    // ON HOLD: files ready, not published. Their Pexels pages
+    // (12118474, 13111090, 14537812) came up as missing on Nov 19, so the
+    // source has to be confirmed before they go public. To use one: put
+    // its two files in v2c/video and change enabled to true.
+    { id: "pizza-cut", tv: 1, type: "brand", footage: "stock", seconds: 9, enabled: false,
+      eyebrow: "Pizza", brandTitle: "Hot & Fresh",
+      video: "pizza-cut.mp4", poster: "pizza-cut.jpg", loop: false, focus: "50% 60%" },
+    { id: "slice-pull", tv: 1, type: "brand", footage: "stock", seconds: 10, enabled: false,
+      eyebrow: "Pizza", brandTitle: "Grab a Slice",
+      video: "slice-pull.mp4", poster: "slice-pull.jpg", loop: false, focus: "50% 60%" },
+    { id: "pasta-twirl", tv: 1, type: "brand", footage: "stock", seconds: 9, enabled: false,
+      eyebrow: "Italian Dinners", brandTitle: "Twirl Worthy",
+      video: "pasta-twirl.mp4", poster: "pasta-twirl.jpg", loop: false, focus: "50% 45%" },
     // ----- TV 2 -----
     { id: "tue-cheesesteak", tv: 2, type: "daily", days: [2], priority: 10, badge: "Today Only", eyebrow: "Tuesday Special",
       title: "Cheesesteak", desc: "Tuesday only", priceId: "R002" },
@@ -369,10 +386,24 @@
       title: "Antipasto", desc: "With garlic bread", img: "antipasto.webp", priceId: "R004", art: { w: 470 } },
     { id: "chicken-cheesesteak", tv: 2, type: "signature", eyebrow: "Steaks & Subs", title: "Chicken Cheesesteak",
       desc: "Thin sliced grilled chicken smothered in melted cheese", img: "chicken-cheesesteak.webp", priceId: "R061", art: { w: 400, y: 14 } },
+    // Pexels 5920247, Kampus Production. Chopped meat piled on a roll.
+    { id: "hot-sandwich", tv: 2, type: "brand", footage: "stock", seconds: 9,
+      eyebrow: "Hot Sandwiches", brandTitle: "Hot Off the Grill",
+      video: "steak-sandwich.mp4", poster: "steak-sandwich.jpg", loop: false, focus: "50% 50%" },
     { id: "caesar-hoagie", tv: 2, type: "signature", eyebrow: "Hoagies", title: "Chicken Caesar Hoagie",
       desc: "Chicken, crisp romaine & creamy Caesar on a long roll", img: "chicken-caesar-hoagie.webp", priceId: "R067", art: { w: 430, rot: -12 } },
+    // Pexels 27674628, LayG Traveller. Sub roll stuffed with sliced deli
+    // meat. Skipped until its files are in v2c/video.
+    { id: "deli-sub", tv: 2, type: "brand", footage: "stock", seconds: 9,
+      eyebrow: "Hoagies", brandTitle: "Stacked High",
+      video: "deli-sub.mp4", poster: "deli-sub.jpg", loop: false, focus: "50% 50%" },
     { id: "eggplant-parm", tv: 2, type: "signature", eyebrow: "Hot Subs", title: "Eggplant Parm",
       desc: "Homemade breaded eggplant, red sauce & melted cheese", img: "eggplant-parm-sub.webp", priceId: "R050", art: { w: 490 } },
+    // Pexels 20416794, Agustina Tolosa. Crispy chicken sandwich and fries.
+    // Skipped until its files are in v2c/video.
+    { id: "crispy-chicken", tv: 2, type: "brand", footage: "stock", seconds: 9,
+      eyebrow: "Chicken Sandwiches", brandTitle: "Crispy & Golden",
+      video: "crispy-chicken.mp4", poster: "crispy-chicken.jpg", loop: false, focus: "50% 50%" },
     { id: "stromboli", tv: 2, type: "signature", eyebrow: "Strombolis", title: "Stromboli",
       desc: "Baked golden, in three sizes", img: "stromboli.webp", priceId: "R033", size: "S", label: "Small", art: { w: 430, rot: -10 } },
     { id: "antipasto", tv: 2, type: "signature", eyebrow: "Salads", title: "Antipasto",
