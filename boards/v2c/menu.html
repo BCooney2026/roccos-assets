@@ -315,6 +315,8 @@
    *             one or the other. The still shows first and stays if the
    *             clip cannot play. If the still is missing the promo is
    *             skipped, so an entry is safe to add before its files.
+   *   loop      false = play the clip once, then fade back to its still
+   *             (default: loop for as long as the promo is on screen)
    *   focus     which part of the clip to keep when it is cropped to the
    *             tall hero window, as "across down", e.g. "60% 40%"
    *             (default "50% 50%", the middle)
@@ -355,9 +357,11 @@
     // Stock footage (Pexels 3752509, Ricky Esquivel): brand spot only.
     // No item name and no price while "approved" is not true. Shows as
     // soon as BOTH files below are in v2c/video; skipped until then.
-    { id: "slice-lift", tv: 1, type: "brand", footage: "stock", priority: 5, seconds: 9,
+    // The clip is 2.8 s: it plays once, then fades back to its still
+    // (a mid-lift frame) for the rest of the 7 s.
+    { id: "slice-lift", tv: 1, type: "brand", footage: "stock", priority: 5, seconds: 7,
       eyebrow: "Phoenixville", brandTitle: "Rocco’s Pizza",
-      video: "slice-lift.mp4", poster: "slice-lift.jpg", focus: "50% 50%" },
+      video: "slice-lift.mp4", poster: "slice-lift.jpg", loop: false, focus: "100% 50%" },
     // ----- TV 2 -----
     { id: "tue-cheesesteak", tv: 2, type: "daily", days: [2], priority: 10, badge: "Today Only", eyebrow: "Tuesday Special",
       title: "Cheesesteak", desc: "Tuesday only", priceId: "R002" },
@@ -911,7 +915,7 @@
     const box = el.querySelector(".clip");
     if (!box) return;
     const v = document.createElement("video");
-    v.muted = true; v.defaultMuted = true; v.loop = true; v.playsInline = true; v.autoplay = true;
+    v.muted = true; v.defaultMuted = true; v.loop = p.loop !== false; v.playsInline = true; v.autoplay = true;
     v.setAttribute("muted", ""); v.setAttribute("playsinline", ""); v.setAttribute("preload", "auto");
     v.disablePictureInPicture = true;
     const fail = why => {
@@ -927,6 +931,8 @@
     v.addEventListener("waiting", () => watch(3000, "stalled"));
     v.addEventListener("stalled", () => { if (!v.classList.contains("live")) watch(8000, "no data"); });
     v.addEventListener("error", () => fail("error"));
+    // Played once (loop: false): fade back to the still. Not a failure.
+    v.addEventListener("ended", () => { if (liveVideo === v) { videoNote = p.video + " ended"; stopVideo(); diag(); } });
     liveVideo = v;
     watch(8000, "did not start");
     v.src = VIDEO_DIR + p.video;
@@ -945,17 +951,20 @@
     const el = slideFor(p);
 
     if (current !== el) {
+      // Right after power-on the new promo snaps in, so the old one (the
+      // wordmark card) leaves at once instead of fading over it.
+      const snapIn = first === true || Date.now() - bootAt < 4000;
       if (current) {
         const old = current;
-        old.classList.remove("on", "snap", "settled"); old.classList.add("out");
-        setTimeout(() => old.classList.remove("out"), 1200);
+        old.classList.remove("on", "snap", "settled");
+        if (!snapIn) { old.classList.add("out"); setTimeout(() => old.classList.remove("out"), 1200); }
       }
       el.classList.remove("out", "snap", "settled");
       dressSlide(p, el);
       void el.offsetWidth;                       // restart the sequence
       // First frame after power-on (and the first food photo to land
       // after it) appears finished, with no entrance.
-      if (first === true || Date.now() - bootAt < 4000) el.classList.add("snap");
+      if (snapIn) el.classList.add("snap");
       el.classList.add("on");
       current = el;
       setTimeout(() => { if (current === el) el.classList.add("settled"); }, 1600);
