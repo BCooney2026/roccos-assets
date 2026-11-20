@@ -1,13 +1,1 @@
-[
-  {
-    "id": "tv2-pipeline-test-delete-me",
-    "tv": 2,
-    "eyebrow": "Pipeline Test",
-    "title": "Delete Me",
-    "video": "tv2-pipeline-test-delete-me.mp4",
-    "poster": "tv2-pipeline-test-delete-me.jpg",
-    "seconds": 10.0,
-    "source": "tv2 Pipeline Test - Delete Me.mp4",
-    "added": "2026-11-20 03:28 UTC"
-  }
-]
+[]
