@@ -1,6 +1,17 @@
 # roccos-assets
 
-Images for Rocco's Pizza (Phoenixville, PA): the command center tablet and the Framer website.
+Images for Rocco's Pizza (Phoenixville, PA): the command center tablet, the Framer website and the TV menu boards.
+
+## boards/ (TV menu boards, served by GitHub Pages)
+
+| Page | What it is |
+| --- | --- |
+| boards/menu.html?tv=1 and ?tv=2 | **Live boards** the TVs run (Fully Kiosk). Prices come from the command center feed. |
+| boards/v2c/menu.html?tv=1 and ?tv=2 | **Menu Board 2.0** preview: promo panel plus full-screen video reels. |
+| boards/v2c/video/ | Reels (`show-*.mp4`), side panel clips and `videos.json`. |
+| boards/v2c/video/inbox/ | Drop a renamed clip here to add it to the side panel (see the README in that folder). |
+
+Base URL: https://bcooney2026.github.io/roccos-assets/
 
 Served free through jsDelivr:
 
