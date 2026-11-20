@@ -435,17 +435,18 @@
     { id: "stromboli", tv: 2, type: "signature", days: [1, 2, 4, 5, 6, 7], eyebrow: "Strombolis", title: "Stromboli",
       desc: "Baked golden, in three sizes", img: "stromboli.webp", priceId: "R033", size: "S", label: "Small", art: { w: 440, rot: -8 } },
     // Videos: stock footage, so unpriced brand spots (no item name, no price).
-    // 720 wide, 9 s, play once then hold the still.
-    { id: "deli-sub", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Hoagies", brandTitle: "Stacked High",
-      video: "deli-sub.mp4", poster: "deli-sub.jpg", loop: false, focus: "50% 50%" },                 // Pexels 12201209 (Brian)
+    // Picked to look like what George actually serves. 720 wide, 9 s,
+    // play once then hold the still.
+    { id: "griddle-rolls", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Steaks & Subs", brandTitle: "Hot Off the Grill",
+      video: "griddle-rolls.mp4", poster: "griddle-rolls.jpg", loop: false, focus: "50% 50%" },       // Pexels 38863832
     { id: "burger-grill", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Burgers", brandTitle: "Fresh Off the Grill",
       video: "burger-grill.mp4", poster: "burger-grill.jpg", loop: false, focus: "50% 70%" },         // Pexels 34697259
-    { id: "steak-sandwich", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Hot Sandwiches", brandTitle: "Piled On",
-      video: "steak-sandwich.mp4", poster: "steak-sandwich.jpg", loop: false, focus: "50% 50%" },     // Pexels 5920247 (Brian)
-    { id: "fries", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Sides", brandTitle: "Hot & Crispy",
-      video: "fries.mp4", poster: "fries.jpg", loop: false, focus: "50% 50%" },                       // Pexels 39195447
-    { id: "crispy-chicken", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Chicken Sandwiches", brandTitle: "Crispy & Golden",
-      video: "crispy-chicken.mp4", poster: "crispy-chicken.jpg", loop: false, focus: "50% 55%" }      // Pexels 20416794 (Brian)
+    { id: "fry-basket", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Sides", brandTitle: "Hot & Crispy",
+      video: "fry-basket.mp4", poster: "fry-basket.jpg", loop: false, focus: "50% 50%" },             // Pexels 7489623
+    { id: "panini", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Paninis", brandTitle: "Pressed & Melty",
+      video: "panini.mp4", poster: "panini.jpg", loop: false, focus: "50% 50%" },                     // Pexels 4584746
+    { id: "onion-rings", tv: 2, type: "brand", footage: "stock", seconds: 9, eyebrow: "Sides", brandTitle: "Golden Brown",
+      video: "onion-rings.mp4", poster: "onion-rings.jpg", loop: false, focus: "50% 50%" }            // Pexels 8880954
   ];
   // Always available, needs nothing from the network but the logo.
   const BRAND_CARD = { id: "roccos", type: "brand", eyebrow: "Pickup & Delivery", title: "610-935-2202", wordmark: true };
@@ -1176,12 +1177,12 @@
     { id: "show-dinners", tv: 1, eyebrow: "Italian Dinners", title: "Mangia." },
     // Pexels 16074388, 12118474, 6089921
     { id: "show-pizzeria", tv: 1, eyebrow: "Rocco’s Pizza", title: "Hot & Fresh." },
-    // Pexels 12201209 (LayG Traveller)
-    { id: "show-hoagie", tv: 2, eyebrow: "Hoagies", title: "Stacked High." },
-    // Pexels 5920247 (Kampus Production)
-    { id: "show-grill", tv: 2, eyebrow: "Hot Sandwiches", title: "Off the Grill." },
-    // Pexels 20416794 (Agustina Tolosa)
-    { id: "show-chicken", tv: 2, eyebrow: "Chicken Sandwiches", title: "Crispy & Golden.", layout: "split" }
+    // Pexels 38863832, 34697259, 4584746
+    { id: "show-grill", tv: 2, eyebrow: "Steaks, Burgers & Paninis", title: "Off the Grill." },
+    // Pexels 7489623
+    { id: "show-fries", tv: 2, eyebrow: "Sides", title: "Hot & Crispy." },
+    // Pexels 8880954
+    { id: "show-rings", tv: 2, eyebrow: "Sides", title: "Golden Brown." }
   ];
   const SHOW_SECONDS = 9;
   const SHOW_EVERY = Math.max(20, Number(params.get("showevery")) || 150);
