@@ -119,7 +119,9 @@
   /* Two-line names: the price sits on the LAST line, next to the end of the
      name (Bob's call, Nov 20). "end" is the fallback for old WebViews. */
   .row .price { font-size: calc(31px * var(--fs)); text-align: right; color: var(--price); align-self: end; align-self: last baseline; }
-  .row .d { grid-column: 1 / -1; font-weight: 500; font-size: calc(20px * var(--fs)); line-height: 1.12; color: var(--ivory-3); margin-top: 1px; }
+  /* Descriptions split into even lines, so one word ("crust", "salsa") never
+     dangles alone on line two. Older WebViews ignore it and wrap as before. */
+  .row .d { grid-column: 1 / -1; font-weight: 500; font-size: calc(20px * var(--fs)); line-height: 1.12; color: var(--ivory-3); margin-top: 1px; text-wrap: balance; }
   .row.sub .n { font-weight: 500; color: #efe4d4; padding-left: 18px; }
   .row.note .n, .row.note .price { font-size: calc(20px * var(--fs)); font-weight: 500; color: var(--ivory-3); }
   .row.hot .n { color: #fff; } .row.hot .price { color: #ff6a55; }
