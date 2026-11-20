@@ -343,7 +343,7 @@
   "use strict";
   const LOGO = "https://framerusercontent.com/images/r89APyBCVRfktBf6smnZj6qI.png?width=1536&height=1024";
   const IMG = "../img/";               // real photos, shared with the live board
-  const PROMO_SECONDS = 10;            // default time on screen per promo
+  const PROMO_SECONDS = 10; const SLOT_MINUTES = 10;            // default time on screen per promo
   const FS_FLOOR = 0.9;                // below this the board is flagged "small"
   const PAD_BASE = 5, PAD_MIN = 2, PAD_MAX = 16; // row spacing (px above and below each row)
   const params = new URLSearchParams(location.search);
@@ -437,8 +437,10 @@
       title: "Antipasto", desc: "With garlic bread", img: "antipasto.webp", priceId: "R004", art: { w: 420 } },
     { id: "chicken-cheesesteak", tv: 2, type: "signature", days: [1, 3, 4, 5, 6, 7], eyebrow: "Steaks & Subs", title: "Chicken Cheesesteak",
       desc: "Thin sliced grilled chicken smothered in melted cheese", img: "chicken-cheesesteak.webp", priceId: "R061", art: { w: 400 } },
-    { id: "chef-salad", tv: 2, type: "signature", eyebrow: "Salads", title: "Chef Salad",
+    { id: "chef-salad", tv: 2, type: "signature", slot: "salads", eyebrow: "Salads", title: "Chef Salad",
       desc: "Ham & cheese rolled into pinwheels", photo: "chef-salad-photo.jpg", focus: "50% 40%", priceId: "R093" },   // George's own Slice shoot (antipasto bowl, cropped to the pinwheels, no pepperoni). Replaced Chicken Caesar Hoagie.
+    { id: "greek-salad", tv: 2, type: "signature", slot: "salads", eyebrow: "Salads", title: "Greek Salad",
+      desc: "With grilled chicken or shrimp", photo: "greek-salad-photo.jpg", focus: "50% 40%", priceId: "R096" },   // Unsplash photo-1670237735381. Shares the salads spot with Chef Salad.
     { id: "eggplant-parm", tv: 2, type: "signature", eyebrow: "Hot Subs", title: "Eggplant Parm",
       desc: "Homemade breaded eggplant, red sauce & melted cheese", img: "eggplant-parm-sub.webp", priceId: "R050", art: { w: 440 } },
     { id: "turkey-club", tv: 2, type: "signature", eyebrow: "Hoagies", title: "Turkey Club",
@@ -894,6 +896,14 @@
     list.sort((a, b) => (b.priority || 0) - (a.priority || 0));
     const pinned = PIN && list.filter(p => p.id === PIN);
     if (pinned && pinned.length) return pinned;
+    // Shared spots: promos with the same slot (e.g. "salads") take turns in
+    // ONE place in the rotation, swapping every SLOT_MINUTES, so adding an
+    // item never pushes another one out. Clock-based, so both reloads and
+    // restarts agree on whose turn it is.
+    const slotTurn = Math.floor(Date.now() / (SLOT_MINUTES * 60000));
+    const groups = {};
+    list.forEach(p => { if (p.slot) (groups[p.slot] = groups[p.slot] || []).push(p); });
+    list = list.filter(p => !p.slot || p === groups[p.slot][slotTurn % groups[p.slot].length]);
     // Specials (priority) go first; after that, photo promos and video
     // spots take turns so the videos are spread through the rotation.
     const top = list.filter(p => (p.priority || 0) > 0);
