@@ -418,8 +418,11 @@
       desc: "Sweet sauce & white cheddar on a thin crust", photo: "jersey-shore-photo.jpg", focus: "50% 50%", priceId: "R018" },   // AI image modeled on George's pie (Brian, Nov 20); free stock had no sauce-spiral pie.
     { id: "neapolitan", tv: 1, type: "signature", days: [2, 3, 4, 5, 6, 7], eyebrow: "The Original", title: "Neapolitan",
       desc: "Round, thin crust", img: "pizza-cheese.webp", priceId: "R009", label: "Large", art: { w: 430 } },
-    { id: "white-pizza", tv: 1, type: "signature", eyebrow: "Specialty Pies", title: "White Pizza",
+    // White Pizza window scene retired Nov 20 (Brian): Vegetarian took its slot. Still on the board.
+    { id: "white-pizza", tv: 1, type: "signature", enabled: false, eyebrow: "Specialty Pies", title: "White Pizza",
       desc: "Garlic, olive oil & mozzarella", img: "pizza-white.webp", priceId: "R023", art: { w: 440, rot: -6 } },
+    { id: "vegetarian", tv: 1, type: "signature", fav: true, eyebrow: "Rocco’s Favorite", title: "Vegetarian",
+      desc: "Broccoli, spinach, mushroom & green pepper. Red or white", photo: "vegetarian-photo.jpg", focus: "50% 50%", priceId: "R021" },   // AI image modeled on George's pie (Brian, Nov 20); free stock had no broccoli/spinach/mushroom/green pepper pie.
     { id: "upside-down", tv: 1, type: "signature", eyebrow: "Specialty Pies", title: "Upside Down",
       desc: "Sauce on top, cheese underneath", img: "pizza-upside-down.webp", priceId: "R020", art: { w: 420 } },
     { id: "ravioli", tv: 1, type: "signature", days: [1, 3, 4, 5, 6, 7], eyebrow: "Italian Dinners", title: "Cheese Ravioli",
