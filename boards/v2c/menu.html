@@ -1031,11 +1031,25 @@
   let videoNote = "";
 
   let current = null, heroTimer = null, heroList = [], bootAt = 0;
+  // A full-screen reel hands off to its matching window clip: that promo
+  // is held on screen for its own length, then the clock rotation resumes.
+  let heroForce = null;                       // { id, until }
+  function forceHero(id) {
+    const f = PROMOS.find(x => x.id === id);
+    if (!f || eligible().indexOf(f) < 0) return;
+    heroForce = { id: id, until: Date.now() + secondsOf(f) * 1000 };
+    if (current) { current.classList.remove("on", "snap", "settled", "out"); current = null; }   // hidden under the reel
+    showPromo(false);
+  }
   function showPromo(first) {
     clearTimeout(heroTimer);
     heroList = eligible();
-    const pick = clockPick(heroList);
-    const p = heroList[pick.index];
+    let pick = clockPick(heroList);
+    let p = heroList[pick.index];
+    if (heroForce && Date.now() < heroForce.until) {
+      const i = heroList.findIndex(x => x.id === heroForce.id);
+      if (i >= 0) { p = heroList[i]; pick = { index: i, left: (heroForce.until - Date.now()) / 1000 }; }
+    } else heroForce = null;
     const el = slideFor(p);
 
     if (current !== el) {
@@ -1165,6 +1179,9 @@
    *   file      the reel (9 s, 1920x1080, made from 4K sources)
    *   layout    "full" (words over the bottom) or "split" (clip left,
    *             words right, for a single tall clip)
+   *   hero      the window promo (PROMOS id) with the same footage. As the
+   *             reel fades out, that clip is already playing in the window,
+   *             so the reel hands off to it; then the rotation carries on.
    * Clock-synced: every SHOW_EVERY seconds one reel plays, the next reel
    * in the list each time. TV 2 runs half a cycle after TV 1.
    *   &show=0 turns it off, &show=ID loops one reel (preview),
@@ -1172,17 +1189,17 @@
    */
   const SHOWS = [
     // Pexels 13111090, 6092567, 6091109
-    { id: "show-pizza", tv: 1, eyebrow: "Phoenixville", title: "Pizza Night." },
+    { id: "show-pizza", tv: 1, hero: "slice-pull", eyebrow: "Phoenixville", title: "Pizza Night." },
     // Pexels 18105251 (Kuiyibo Campos), 14537812, 8107806
-    { id: "show-dinners", tv: 1, eyebrow: "Italian Dinners", title: "Mangia." },
+    { id: "show-dinners", tv: 1, hero: "pasta-flame", eyebrow: "Italian Dinners", title: "Mangia." },
     // Pexels 16074388, 12118474, 6089921
-    { id: "show-pizzeria", tv: 1, eyebrow: "Rocco’s Pizza", title: "Hot & Fresh." },
+    { id: "show-pizzeria", tv: 1, hero: "cheese-spread", eyebrow: "Rocco’s Pizza", title: "Hot & Fresh." },
     // Pexels 38863832, 34697259, 4584746
-    { id: "show-grill", tv: 2, eyebrow: "Steaks, Burgers & Paninis", title: "Off the Grill." },
+    { id: "show-grill", tv: 2, hero: "griddle-rolls", eyebrow: "Steaks, Burgers & Paninis", title: "Off the Grill." },
     // Pexels 7489623
-    { id: "show-fries", tv: 2, eyebrow: "Sides", title: "Hot & Crispy." },
+    { id: "show-fries", tv: 2, hero: "fry-basket", eyebrow: "Sides", title: "Hot & Crispy." },
     // Pexels 8880954
-    { id: "show-rings", tv: 2, eyebrow: "Sides", title: "Golden Brown." }
+    { id: "show-rings", tv: 2, hero: "onion-rings", eyebrow: "Sides", title: "Golden Brown." }
   ];
   const SHOW_SECONDS = 9;
   const SHOW_EVERY = Math.max(20, Number(params.get("showevery")) || 150);
@@ -1195,8 +1212,9 @@
     const pin = SHOW_PARAM && SHOWS.filter(s => s.id === SHOW_PARAM);
     return pin && pin.length ? pin : mine;
   }
-  function endShow() {
+  function endShow(handoff) {
     clearTimeout(showEnd);
+    if (handoff && handoff.hero && showEl.classList.contains("on")) forceHero(handoff.hero);
     showEl.classList.remove("on");
     const v = showVideo; showVideo = null;
     if (v) setTimeout(() => { try { v.pause(); v.removeAttribute("src"); v.load(); } catch (e) {} }, 800);
@@ -1220,9 +1238,9 @@
       shown = true; clearTimeout(give);
       stopVideo();                              // one video at a time on the stick
       showEl.classList.add("on");
-      showEnd = setTimeout(endShow, Math.max(1000, (SHOW_SECONDS - 0.7) * 1000));
+      showEnd = setTimeout(() => endShow(s), Math.max(1000, (SHOW_SECONDS - 0.7) * 1000));
     });
-    v.addEventListener("ended", () => { if (showVideo === v) endShow(); });
+    v.addEventListener("ended", () => { if (showVideo === v) endShow(s); });
     v.addEventListener("error", () => { if (showVideo === v) endShow(); });
     v.src = VIDEO_DIR + s.id + ".mp4";
     const pr = v.play(); if (pr && pr.catch) pr.catch(() => { if (showVideo === v) endShow(); });
