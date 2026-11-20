@@ -214,9 +214,12 @@
   .slide.on .plate, .slide.on .medal, .slide.on .brandart, .slide.on .clip { animation: arrive 1.1s var(--ease) both; }
   .slide.on .zoom { animation: pushin var(--dur, 12s) linear both; }
   .slide.on .sweep { animation: sweep 1.5s ease-in-out .9s both; }
-  .slide.on .eyebrow, .slide.on .title, .slide.on .desc { animation: rise .8s var(--ease) both; }
-  .slide.on .pricebar { animation: rise .8s var(--ease) .1s both; }
-  .slide.on .pricebar i { animation: draw .7s var(--ease) .9s both; }
+  /* Photo first, then the words drop in: eyebrow, name, description, price. */
+  .slide.on .eyebrow { animation: drop .7s var(--ease) 1.1s both; }
+  .slide.on .title { animation: drop .8s var(--ease) 1.3s both; }
+  .slide.on .desc { animation: drop .7s var(--ease) 1.55s both; }
+  .slide.on .pricebar { animation: drop .8s var(--ease) 1.8s both; }
+  .slide.on .pricebar i { animation: draw .7s var(--ease) 2.4s both; }
   /* Power-on frame: no animation at all, so it cannot sit invisible while
      a slow or background browser waits to run its first animation frame. */
   .slide.on.snap, .slide.on.snap * { animation: none !important; }
@@ -227,6 +230,7 @@
   @keyframes pushin { from { transform: scale(1); } to { transform: scale(1.06); } }
   @keyframes sweep { 0% { opacity: 1; background-position: 120% 0; } 99% { opacity: 1; background-position: -20% 0; } 100% { opacity: 0; background-position: -20% 0; } }
   @keyframes rise { from { transform: translateY(12px); } to { transform: none; } }
+  @keyframes drop { from { opacity: 0; transform: translateY(-26px); } to { opacity: 1; transform: none; } }
   @keyframes draw { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 
   /*
@@ -328,7 +332,7 @@
   "use strict";
   const LOGO = "https://framerusercontent.com/images/r89APyBCVRfktBf6smnZj6qI.png?width=1536&height=1024";
   const IMG = "../img/";               // real photos, shared with the live board
-  const PROMO_SECONDS = 12;            // default time on screen per promo
+  const PROMO_SECONDS = 10;            // default time on screen per promo
   const FS_FLOOR = 0.9;                // below this the board is flagged "small"
   const PAD_BASE = 5, PAD_MIN = 2, PAD_MAX = 16; // row spacing (px above and below each row)
   const params = new URLSearchParams(location.search);
@@ -385,27 +389,35 @@
    * its photo did not load, or its item has no price or was removed.
    */
   const PROMOS = [
-    // ----- TV 1 -----
+    // ----- TV 1: 10 scenes, 5 of George's items and 5 videos -----
+    // The daily specials swap in for one item on their day, so it stays 10.
     { id: "mon-pizza", tv: 1, type: "daily", days: [1], priority: 10, badge: "Today Only", eyebrow: "Monday Special",
-      title: "Large Plain Pizza", desc: "Every Monday", img: "pizza-cheese.webp", priceId: "R001", art: { w: 590, x: -34 } },
+      title: "Large Plain Pizza", desc: "Every Monday", img: "pizza-cheese.webp", priceId: "R001", art: { w: 430 } },
     { id: "tue-spaghetti", tv: 1, type: "daily", days: [2], priority: 10, badge: "Today Only", eyebrow: "Tuesday Special",
       title: "Spaghetti & Meatballs", desc: "With salad & garlic bread", priceId: "R003" },
     { id: "jersey-shore", tv: 1, type: "signature", eyebrow: "Rocco’s Famous", title: "Jersey Shore",
-      desc: "Sweet sauce & white cheddar on a thin crust", img: "pizza-jersey-shore.webp", priceId: "R018", art: { w: 590, x: -34 } },
-    { id: "neapolitan", tv: 1, type: "signature", eyebrow: "The Original", title: "Neapolitan",
-      desc: "Round, thin crust", img: "pizza-cheese.webp", priceId: "R009", label: "Large", art: { w: 590, x: -34 } },
-    { id: "ravioli", tv: 1, type: "signature", eyebrow: "Italian Dinners", title: "Cheese Ravioli",
-      desc: "Cheese filled ravioli in red sauce. With salad & garlic bun", img: "ravioli-tray.webp", priceId: "R132", art: { w: 440 } },
-    { id: "pickup-deal", tv: 1, type: "signature", days: [1, 2, 3, 4], eyebrow: "Pickup Deal · Mon to Thu", title: "Two Large Cheese",
-      desc: "Pickup only. Toppings extra", img: "pizza-cheese.webp", priceId: "R005", art: { w: 590, x: -34 } },
-    // Stock footage (Pexels 3752509, Ricky Esquivel): brand spot only.
-    // No item name and no price while "approved" is not true. Shows as
-    // soon as BOTH files below are in v2c/video; skipped until then.
-    // The clip is 2.8 s: it plays once, then fades back to its still
-    // (a mid-lift frame) for the rest of the 7 s.
-    { id: "slice-lift", tv: 1, type: "brand", footage: "stock", priority: 5, seconds: 7,
-      eyebrow: "Phoenixville", brandTitle: "Rocco’s Pizza",
-      video: "slice-lift.mp4", poster: "slice-lift.jpg", loop: false, focus: "100% 50%" },
+      desc: "Sweet sauce & white cheddar on a thin crust", img: "pizza-jersey-shore.webp", priceId: "R018", art: { w: 430 } },
+    { id: "neapolitan", tv: 1, type: "signature", days: [2, 3, 4, 5, 6, 7], eyebrow: "The Original", title: "Neapolitan",
+      desc: "Round, thin crust", img: "pizza-cheese.webp", priceId: "R009", label: "Large", art: { w: 430 } },
+    { id: "white-pizza", tv: 1, type: "signature", eyebrow: "Specialty Pies", title: "White Pizza",
+      desc: "Garlic, olive oil & mozzarella", img: "pizza-white.webp", priceId: "R023", art: { w: 440, rot: -6 } },
+    { id: "upside-down", tv: 1, type: "signature", eyebrow: "Specialty Pies", title: "Upside Down",
+      desc: "Sauce on top, cheese underneath", img: "pizza-upside-down.webp", priceId: "R020", art: { w: 420 } },
+    { id: "ravioli", tv: 1, type: "signature", days: [1, 3, 4, 5, 6, 7], eyebrow: "Italian Dinners", title: "Cheese Ravioli",
+      desc: "Cheese filled ravioli in red sauce. With salad & garlic bun", img: "ravioli-tray.webp", priceId: "R132", art: { w: 420 } },
+    // Videos: stock footage, so unpriced brand spots (no item name, no price).
+    // Cut from Brian's 4K Pexels downloads, 720x1280, 9 s, play once
+    // then hold the still.
+    { id: "pasta-flame", tv: 1, type: "brand", footage: "stock", seconds: 9, eyebrow: "Italian Dinners", brandTitle: "Mangia!",
+      video: "pasta-flame.mp4", poster: "pasta-flame.jpg", loop: false, focus: "50% 50%" },          // Pexels 18105251
+    { id: "slice-pull", tv: 1, type: "brand", footage: "stock", seconds: 9, eyebrow: "Pizza", brandTitle: "Grab a Slice",
+      video: "slice-pull.mp4", poster: "slice-pull.jpg", loop: false, focus: "50% 50%" },           // Pexels 13111090
+    { id: "pasta-twirl", tv: 1, type: "brand", footage: "stock", seconds: 9, eyebrow: "Italian Dinners", brandTitle: "Twirl Worthy",
+      video: "pasta-twirl.mp4", poster: "pasta-twirl.jpg", loop: false, focus: "50% 55%" },         // Pexels 14537812
+    { id: "pizza-cutter", tv: 1, type: "brand", footage: "stock", seconds: 9, eyebrow: "Pizza", brandTitle: "Hot & Fresh",
+      video: "pizza-cutter.mp4", poster: "pizza-cutter.jpg", loop: false, focus: "50% 50%" },       // Pexels 6092567
+    { id: "cheese-spread", tv: 1, type: "brand", footage: "stock", seconds: 9, eyebrow: "Made to Order", brandTitle: "Rocco’s Pizza",
+      video: "cheese-spread.mp4", poster: "cheese-spread.jpg", loop: false, focus: "50% 45%" },     // Pexels 16074388
     // ----- TV 2 -----
     { id: "tue-cheesesteak", tv: 2, type: "daily", days: [2], priority: 10, badge: "Today Only", eyebrow: "Tuesday Special",
       title: "Cheesesteak", desc: "Tuesday only", priceId: "R002" },
@@ -942,7 +954,7 @@
       const tilt = Math.abs(a.rot || 0) * Math.PI / 180;
       // Height the photo takes at width 1 (a tilted photo stands taller).
       const tall = Math.cos(tilt) / photoShape[p.img] + Math.sin(tilt);
-      const full = a.w || 460, w = Math.round(Math.min(full, room / tall));
+      const full = Math.min(a.w || 430, 440), w = Math.round(Math.min(full, room / tall));
       plate.style.width = w + "px";
       plate.style.marginLeft = Math.round((a.x || 0) * w / full) + "px";
     }
