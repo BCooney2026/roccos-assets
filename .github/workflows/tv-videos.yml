@@ -25,7 +25,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Only install ffmpeg when there is a clip to process. Most pushes
+      # (removals, page edits) have an empty inbox and skip it.
+      - name: Check the inbox
+        id: inbox
+        run: |
+          if find boards/v2c/video/inbox -maxdepth 1 -type f -iregex '.*\.\(mp4\|mov\|m4v\|webm\)' | grep -q .; then
+            echo "clips=yes" >> "$GITHUB_OUTPUT"
+          else
+            echo "clips=no" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Install ffmpeg
+        if: steps.inbox.outputs.clips == 'yes'
+        timeout-minutes: 8
         run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
 
       - name: Process the inbox
