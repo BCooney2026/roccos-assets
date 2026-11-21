@@ -317,8 +317,9 @@
   .wordmark span { display: block; margin-top: 14px; font-family: "Oswald", sans-serif; font-weight: 600; font-size: 30px; letter-spacing: .5em; margin-right: -.5em; text-transform: uppercase; color: var(--gold); }
   .slide.on .wordmark { animation: arrive 1.1s var(--ease) both; }
 
-  /* Rotation ticks: one per promo, the lit one is on screen. */
-  .ticks { flex: none; display: flex; gap: 8px; padding: 20px 36px 0; height: 40px; }
+  /* Rotation ticks: one per promo, the lit one is on screen.
+     Hidden Nov 21 (Brian: lose the lines). Delete "display: none" to bring them back. */
+  .ticks { flex: none; display: none; gap: 8px; padding: 20px 36px 0; height: 40px; }
   .ticks i { flex: 1; max-width: 46px; height: 3px; border-radius: 2px; background: rgba(255, 245, 233, .16); transition: background .6s ease; }
   .ticks i.on { background: var(--gold); }
 
@@ -455,6 +456,7 @@
    *   priority  higher shows first in the rotation
    *   enabled   false switches it off
    *   feature   "bh" = the animated Rocco's x Boar's Head brand tile (needs photo)
+ *   photos    ["a.jpg", "b.jpg"] = rotate the photo: next one each time round
  *   art       { w: photo width in px, x, y: nudge in px, rot: degrees }
  *             (w also sizes a brandImg card, default 430)
    * A promo is skipped (never shown broken) when it is out of schedule,
@@ -535,11 +537,14 @@
       desc: "Scan to order online for pickup or delivery", brandImg: "qr-order.png", art: { w: 330 } },     // QR Tiger dynamic qr1.be/YR2Z90 -> roccospizzarestaurantmenu.com ("Rocco's TV - Order Ahead")
     { id: "qr-review", type: "signature", slot: "qr", eyebrow: "Thanks for Coming In", title: "Leave Us a Review",
       desc: "Scan to rate us on Google. It means a lot!", brandImg: "qr-review.png", art: { w: 330 } },     // QR Tiger dynamic qr1.be/W5CMVW -> Google write-review, place ChIJJ-sUGuCNxokRXFVAT_BPWAE ("Rocco's TV - Review")
-    // ----- BOTH TVs: Rocco's x Proudly Featuring Boar's Head (added Nov 21, Brian).
-    // Its own extra scene, animated (feature: "bh"). Copy only claims what the
-    // menu shows: Boar's Head turkey (hoagies) and Boar's Head ham (pies).
-    { id: "boars-head", type: "signature", feature: "bh", seconds: 14, eyebrow: "Only the Best", title: "Piled High",
-      desc: "Boar’s Head meats on our hoagies & pies", photo: "bh-feature-photo.jpg", focus: "50% 100%" }     // Google write-review link, place ChIJJ-sUGuCNxokRXFVAT_BPWAE
+    // ----- TV 2 only: Rocco's x Proudly Featuring Boar's Head (added Nov 21, Brian;
+    // TV 2 only per Brian, the pizza board has no Boar's Head). Animated (feature: "bh").
+    { id: "boars-head", tv: 2, type: "signature", feature: "bh", seconds: 14, eyebrow: "Only the Best", title: "Piled High",
+      desc: "Boar’s Head meats on our hoagies", photo: "bh-hoagie-01.jpg", focus: "50% 100%",
+      // 12 stock hoagies (Pexels + Unsplash), next one each time the tile comes around.
+      // Pexels 17301619, 40175228, 18020342, 461382, 8471478, 6389711, 40690552, 34593405, 17748170, 37228374;
+      // Unsplash photo-1749513762144, photo-1481070414801. Whole sandwich low, blurred copy of the photo above.
+      photos: ["bh-hoagie-01.jpg", "bh-hoagie-02.jpg", "bh-hoagie-03.jpg", "bh-hoagie-04.jpg", "bh-hoagie-05.jpg", "bh-hoagie-06.jpg", "bh-hoagie-07.jpg", "bh-hoagie-08.jpg", "bh-hoagie-09.jpg", "bh-hoagie-10.jpg", "bh-hoagie-11.jpg", "bh-hoagie-12.jpg"] }
   ];
   // Always available, needs nothing from the network but the logo.
   const BRAND_CARD = { id: "roccos", type: "brand", eyebrow: "Pickup & Delivery", title: "610-935-2202", wordmark: true };
@@ -948,7 +953,7 @@
     im.onerror = () => done(false);
     im.src = (dir || IMG) + file;
   }
-  PROMOS.forEach(p => { if (!p.tv || p.tv === tv) { preload(p.img); preload(p.photo); preload(p.brandImg); preload(p.poster, VIDEO_DIR); } });
+  PROMOS.forEach(p => { if (!p.tv || p.tv === tv) { preload(p.img); preload(p.photo); preload(p.brandImg); preload(p.poster, VIDEO_DIR); (p.photos || []).forEach(f => preload(f)); } });
 
   function shopHour() {
     return Number(new Date().toLocaleString("en-US", { timeZone: RS.TZ, hour: "numeric", hour12: false })) % 24;
@@ -1196,6 +1201,15 @@
         if (!snapIn) { old.classList.add("out"); setTimeout(() => old.classList.remove("out"), 1200); }
       }
       el.classList.remove("out", "snap", "settled");
+      // A promo with photos: [...] shows the next one each time round the rotation.
+      if (p.photos) {
+        const ok = p.photos.filter(f => photoOk[f] === true);
+        const img = el.querySelector(".clip.photo > img");
+        if (ok.length && img) {
+          const total = heroList.reduce((n, x) => n + secondsOf(x), 0) || 1;
+          img.src = IMG + ok[Math.floor(Date.now() / 1000 / total) % ok.length];
+        }
+      }
       dressSlide(p, el);
       void el.offsetWidth;                       // restart the sequence
       // First frame after power-on (and the first food photo to land
