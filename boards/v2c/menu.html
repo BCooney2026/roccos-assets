@@ -268,16 +268,16 @@
    * gold light sweeps across it every few seconds. The lockup is never split
    * or recolored (brand mark stays intact). Everything is opacity / transform.
    */
-  .feat { position: absolute; left: 0; right: 0; top: 0; bottom: 0; z-index: 2; display: flex; flex-direction: column;
-    align-items: center; justify-content: flex-start; padding-top: 24px; pointer-events: none; }
-  .feat-glow { position: absolute; left: 50%; top: 210px; width: 620px; height: 420px; margin-left: -310px; opacity: 0;
+  .feat { position: absolute; left: 0; right: 0; top: -108px; bottom: 0; z-index: 4; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start; padding-top: 6px; pointer-events: none; }
+  .feat-glow { position: absolute; left: 50%; top: 40px; width: 620px; height: 400px; margin-left: -310px; opacity: 0;
     background: radial-gradient(closest-side, rgba(255, 190, 90, .30), rgba(216, 171, 105, .10) 55%, transparent 78%); }
-  .feat-rocco { width: 250px; height: auto; position: relative; filter: drop-shadow(0 10px 26px rgba(0, 0, 0, .85)); }
-  .feat-rule { position: relative; display: flex; align-items: center; gap: 12px; width: 360px; margin: 20px 0 22px; }
+  .feat-rocco { width: 330px; margin-bottom: -26px; height: auto; position: relative; filter: drop-shadow(0 10px 26px rgba(0, 0, 0, .85)); }
+  .feat-rule { position: relative; display: flex; align-items: center; gap: 12px; width: 360px; margin: 6px 0 14px; }
   .feat-rule i { flex: 1; height: 2px; background: linear-gradient(90deg, transparent, var(--gold)); transform-origin: right center; }
   .feat-rule i + b + i { background: linear-gradient(90deg, var(--gold), transparent); transform-origin: left center; }
   .feat-rule b { width: 9px; height: 9px; background: var(--gold); transform: rotate(45deg); box-shadow: 0 0 14px rgba(255, 200, 110, .9); }
-  .feat-bh { position: relative; width: 430px; }
+  .feat-bh { position: relative; width: 410px; }
   .feat-bh img { display: block; width: 100%; height: auto; filter: drop-shadow(0 8px 22px rgba(0, 0, 0, .9)); }
   .feat-bh .shine { position: absolute; inset: 0; opacity: 0;
     background: linear-gradient(105deg, transparent 40%, rgba(255, 226, 160, .95) 50%, transparent 60%) no-repeat;
@@ -534,7 +534,7 @@
     // Its own extra scene, animated (feature: "bh"). Copy only claims what the
     // menu shows: Boar's Head turkey (hoagies) and Boar's Head ham (pies).
     { id: "boars-head", type: "signature", feature: "bh", seconds: 14, eyebrow: "Only the Best", title: "Piled High",
-      desc: "Boar’s Head meats on our hoagies & pies", photo: "bh-feature-photo.jpg", focus: "50% 50%" }     // Google write-review link, place ChIJJ-sUGuCNxokRXFVAT_BPWAE
+      desc: "Boar’s Head meats on our hoagies & pies", photo: "bh-feature-photo.jpg", focus: "50% 100%" }     // Google write-review link, place ChIJJ-sUGuCNxokRXFVAT_BPWAE
   ];
   // Always available, needs nothing from the network but the logo.
   const BRAND_CARD = { id: "roccos", type: "brand", eyebrow: "Pickup & Delivery", title: "610-935-2202", wordmark: true };
