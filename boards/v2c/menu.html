@@ -128,6 +128,11 @@
   .row .lbl { font-family: "Oswald", sans-serif; font-weight: 500; font-size: .56em; letter-spacing: .14em; color: var(--gold); margin: 0 5px 0 12px; text-transform: uppercase; }
   .row .lbl:first-child { margin-left: 0; }
   .row.wide .price { grid-column: 1 / -1; text-align: left; margin-top: 2px; }
+  /* 86'd for today (tablet): name dims, SOLD OUT tag where the price was. */
+  .row.out .n, .row.out .d { opacity: .45; }
+  .out-tag { display: inline-block; font-family: "Oswald", sans-serif; font-weight: 600; font-size: .6em; letter-spacing: .14em;
+    text-transform: uppercase; color: #fff; background: var(--tomato); padding: .12em .5em .08em; border-radius: 4px; white-space: nowrap; }
+  .tbl .row .out-tag { font-size: .5em; letter-spacing: .08em; }
   /* A price George just changed pulses three times, then sits still. */
   .row.pchanged .price { animation: pglow 2.4s ease 3; }
   @keyframes pglow { 50% { color: #fff; text-shadow: 0 0 18px var(--tomato); } }
@@ -391,7 +396,7 @@
   <div class="menu" id="menu"></div>
   <div class="show" id="show"></div>
 </div>
-<script src="../signage.js?v=4"></script>
+<script src="../signage.js?v=5"></script>
 <script>
 (function () {
   "use strict";
@@ -800,19 +805,26 @@
     if (list.length > 1 && !list.every(x => x === list[0])) return list.map(RS.money).join(" / ");
     return /\//.test(list[0]) ? sizesHtml(list[0]) : RS.money(list[0]);
   }
+  const OUT_TAG = '<span class="out-tag">Sold out</span>';
+  const allOut = it => !it.np && it.ids.length > 0 && it.ids.every(RS.isSoldOut);
   function rowHtml(it) {
+    const out = allOut(it);
     const raw = it.ids.map(id => RS.price(id)).join("|");
-    const wide = /\//.test(raw) && it.ids.length === 1;
-    return '<div class="row' + (it.sub ? ' sub' : '') + (it.note ? ' note' : '') + (it.hot ? ' hot' : '') + (wide ? ' wide' : '') + '" data-ids="' + it.ids.join(",") + '">' +
+    const wide = !out && /\//.test(raw) && it.ids.length === 1;
+    return '<div class="row' + (it.sub ? ' sub' : '') + (it.note ? ' note' : '') + (it.hot ? ' hot' : '') + (wide ? ' wide' : '') + (out ? ' out' : '') + '" data-ids="' + it.ids.join(",") + '">' +
       '<div class="n">' + (it.s ? '<span class="star">&#9733;</span>' : '') + esc(it.n) + '</div>' +
-      '<div class="price">' + priceHtml(it) + '</div>' +
+      '<div class="price">' + (out ? OUT_TAG : priceHtml(it)) + '</div>' +
       (it.d ? '<div class="d">' + esc(it.d) + '</div>' : '') + '</div>';
   }
   function tblRow(it) {
-    const cells = it.ids.length === 2
-      ? '<div class="price">' + RS.p(it.ids[0]) + '</div><div class="price">' + RS.p(it.ids[1]) + '</div>'
-      : '<div class="price one">' + RS.p(it.ids[0]) + '</div>';
-    return '<div class="row" data-ids="' + it.ids.join(",") + '"><div class="n">' + esc(it.n) + '</div>' + cells +
+    const out = allOut(it);
+    const cell = id => RS.isSoldOut(id) ? OUT_TAG : RS.p(id);
+    const cells = out
+      ? '<div class="price one">' + OUT_TAG + '</div>'
+      : it.ids.length === 2
+        ? '<div class="price">' + cell(it.ids[0]) + '</div><div class="price">' + cell(it.ids[1]) + '</div>'
+        : '<div class="price one">' + cell(it.ids[0]) + '</div>';
+    return '<div class="row' + (out ? ' out' : '') + '" data-ids="' + it.ids.join(",") + '"><div class="n">' + esc(it.n) + '</div>' + cells +
       (it.d ? '<div class="d">' + esc(it.d) + '</div>' : '') + '</div>';
   }
   function secHtml(sec) {
@@ -836,6 +848,7 @@
         }).join("") + '</div>' +
         '<div class="flavors">' + sec.items.map(it => {
           const own = it.ids.map(id => RS.price(id)).join("|");
+          if (allOut(it)) return '<span>' + esc(it.n) + ' ' + OUT_TAG + '</span>';
           return '<span>' + esc(it.n) + (own && own !== sizeStr ? ' ' + priceHtml(it) : '') + '</span>';
         }).join("") + '</div>';
     } else {
@@ -961,6 +974,7 @@
       if (p.video && !stillSrc(p)) return false;                // a clip must have a still
       if (p.poster && photoOk[p.poster] !== true) return false;
       if (p.priceId && !isBrandSpot(p) && (RS.isRemoved(p.priceId) || !promoPrice(p))) return false;
+      if (p.priceId && RS.isSoldOut(p.priceId)) return false;          // 86'd today: skip its scene
       return true;
     });
     // Until the photos have settled (a moment after power-on) only the

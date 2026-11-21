@@ -5,6 +5,9 @@
     reads) by Sheet ID, R001 to R148. Never type prices into a board.
   - The last good feed is kept on the TV, so a Wi-Fi drop never blanks
     the screen. Refreshes every 2 minutes.
+  - 86 (tablet): RS.isSoldOut(id) is true for items George marked
+    "Sold out today". The feed's soldOut list only counts on its own
+    soldOutDate, so a TV that kept yesterday's feed overnight ignores it.
   - Add / remove (tablet): RS.removed holds the IDs George took off the
     menu (the feed's "removed" list), so a board hides them on purpose.
     An ID that is only missing from the feed keeps its fallback price.
@@ -47,6 +50,8 @@
     prices: Object.assign({}, FALLBACK),
     settings: { soup: "", banner: "", soupList: [] },
     removed: {},
+    soldOut: {},
+    soldOutDate: "",
     items: [],
     TZ: TZ
   };
@@ -62,6 +67,11 @@
   };
   RS.price = function (id) { return RS.removed[id] ? "" : (RS.prices[id] || ""); };
   RS.isRemoved = function (id) { return !!RS.removed[id]; };
+  // Preview only: &test86=R018,R009 shows those items as sold out.
+  const TEST86 = (new URLSearchParams(location.search).get("test86") || "").split(",").filter(Boolean);
+  RS.isSoldOut = function (id) {
+    return TEST86.indexOf(id) >= 0 || (!!RS.soldOut[id] && RS.soldOutDate === RS.today());
+  };
   RS.p = function (id) { return RS.money(RS.price(id)); };
 
   /** Pull one size out of a multi-size price: RS.size("R028", "Large"). */
@@ -117,6 +127,10 @@
     (Array.isArray(feed.removed) ? feed.removed : []).forEach(id => { if (id) removed[id] = true; });
     RS.prices = next;
     RS.removed = removed;
+    const soldOut = {};
+    (Array.isArray(feed.soldOut) ? feed.soldOut : []).forEach(id => { if (id) soldOut[id] = true; });
+    RS.soldOut = soldOut;
+    RS.soldOutDate = String(feed.soldOutDate || "");
     RS.items = feed.items.filter(it => it && it.id);
     RS.settings = Object.assign({ soup: "", banner: "", soupList: [] }, feed.settings || {});
     return true;
