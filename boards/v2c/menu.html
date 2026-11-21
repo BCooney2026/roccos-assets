@@ -404,6 +404,7 @@
    *   priority  higher shows first in the rotation
    *   enabled   false switches it off
    *   art       { w: photo width in px, x, y: nudge in px, rot: degrees }
+ *             (w also sizes a brandImg card, default 430)
    * A promo is skipped (never shown broken) when it is out of schedule,
    * its photo did not load, or its item has no price or was removed.
    */
@@ -479,9 +480,9 @@
     // Cards are built by a script (white tile + "SCAN TO ..." bar). To point a
     // code somewhere else (e.g. QR Tiger tracking links), regenerate the PNG.
     { id: "qr-order", type: "signature", slot: "qr", eyebrow: "Skip the Line", title: "Order Ahead",
-      desc: "Scan to order online for pickup or delivery", brandImg: "qr-order.png" },     // roccospizzarestaurantmenu.com
+      desc: "Scan to order online for pickup or delivery", brandImg: "qr-order.png", art: { w: 330 } },     // roccospizzarestaurantmenu.com
     { id: "qr-review", type: "signature", slot: "qr", eyebrow: "Thanks for Coming In", title: "Leave Us a Review",
-      desc: "Scan to rate us on Google. It means a lot!", brandImg: "qr-review.png" }     // Google write-review link, place ChIJJ-sUGuCNxokRXFVAT_BPWAE
+      desc: "Scan to rate us on Google. It means a lot!", brandImg: "qr-review.png", art: { w: 330 } }     // Google write-review link, place ChIJJ-sUGuCNxokRXFVAT_BPWAE
   ];
   // Always available, needs nothing from the network but the logo.
   const BRAND_CARD = { id: "roccos", type: "brand", eyebrow: "Pickup & Delivery", title: "610-935-2202", wordmark: true };
@@ -975,7 +976,7 @@
         '<div class="zoom"><div style="position:relative;transform:rotate(' + (a.rot || 0) + 'deg)"><img src="' + src + '" alt="">' +
         '<div class="sweep" style="-webkit-mask-image:url(' + src + ');mask-image:url(' + src + ')"></div></div></div></div>';
     } else if (p.brandImg) {
-      art = '<div class="brandart"><img src="' + IMG + p.brandImg + '" alt=""></div>';
+      art = '<div class="brandart"' + (a.w ? ' style="width:' + a.w + 'px"' : '') + '><img src="' + IMG + p.brandImg + '" alt=""></div>';
     } else if (p.wordmark) {
       art = '<div class="wordmark"><b>Rocco’s</b><span>Pizza</span></div>';
     } else {
